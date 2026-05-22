@@ -10,8 +10,9 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
-  ScrollView,
+  Modal,
   Platform,
+  ScrollView,
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -28,7 +29,7 @@ import { useAuth, api } from '../../src/auth';
 import StatusPill from '../../src/StatusPill';
 import ItemFormModal from '../../src/ItemFormModal';
 
-import { ProductionItem, todayISO, formatDateLabel, formatBags, SITUATIONS } from '../../src/types';
+import { ProductionItem, todayISO, formatDateLabel, SITUATIONS } from '../../src/types';
 
 const buildLast14Days = (): string[] => {
   const out: string[] = [];
@@ -62,6 +63,7 @@ export default function PlanilhaScreen() {
   const [sitFilter, setSitFilter] = useState('Todos');
   const [formVisible, setFormVisible] = useState(false);
   const [editing, setEditing] = useState<ProductionItem | null>(null);
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
 
   const viewShotRef = useRef<ViewShot>(null);
 
@@ -124,16 +126,21 @@ export default function PlanilhaScreen() {
   }, [items, search, sitFilter]);
 
   const stats = useMemo(() => {
-    const count = (s: string) => items.filter(i => i.situation === s).length;
+    const count = (s: string) => filtered.filter(i => i.situation === s).length;
 
     return {
-      total: items.length,
+      total: filtered.length,
       recebido: count('Recebido'),
       aPreparar: count('A preparar'),
       preparado: count('Preparado'),
       fabrica: count('Em fábrica'),
     };
-  }, [items]);
+  }, [filtered]);
+
+  const handleEdit = (item: ProductionItem) => {
+    setEditing(item);
+    setFormVisible(true);
+  };
 
   const handleDelete = (id: string) => {
     Alert.alert('Remover material', 'Confirma a remoção deste material?', [
@@ -214,14 +221,94 @@ export default function PlanilhaScreen() {
         },
       ]}
     >
-      <Text style={[styles.product, { color: colors.textPrimary }]}>{item.product}</Text>
+      <View style={styles.cardRow}>
+        <View style={{ flex: 1, gap: 4 }}>
+          <View style={styles.badgeRow}>
+            <View
+              style={[
+                styles.unitBadge,
+                {
+                  backgroundColor: colors.primary + '22',
+                },
+              ]}
+            >
+              <Text
+                style={{
+                  color: colors.primary,
+                  fontSize: 11,
+                  fontWeight: '700',
+                }}
+              >
+                {item.unit} • {item.sc}
+              </Text>
+            </View>
+          </View>
 
-      <Text style={[styles.batch, { color: colors.textSecondary }]}>Lote {item.batch}</Text>
+          <Text style={[styles.productName, { color: colors.textPrimary }]}>
+            {item.product_abbr}
+          </Text>
 
-      <View style={styles.cardBottom}>
-        <StatusPill label={item.situation} />
-        <StatusPill label={item.material_status} />
+          <Text style={[styles.productFull, { color: colors.textSecondary }]}>
+            {item.product}
+          </Text>
+
+          <Text style={[styles.batch, { color: colors.textTertiary }]}>
+            Lote {item.batch}
+            {item.quantity ? ` · ${item.quantity}${item.quantity_unit}` : ''}
+          </Text>
+        </View>
+
+        <View style={{ alignItems: 'flex-end', justifyContent: 'space-between' }}>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              onPress={() => handleEdit(item)}
+              hitSlop={8}
+              style={[
+                styles.iconButton,
+                {
+                  backgroundColor: colors.primary + '22',
+                },
+              ]}
+            >
+              <Ionicons name="pencil" size={14} color={colors.primary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => handleDelete(item.id)}
+              hitSlop={8}
+              style={[
+                styles.iconButton,
+                {
+                  backgroundColor: '#FF4B4B22',
+                },
+              ]}
+            >
+              <Ionicons name="trash" size={14} color="#FF4B4B" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.statusColumn}>
+            <StatusPill label={item.situation} small />
+            <StatusPill label={item.material_status} small />
+          </View>
+        </View>
       </View>
+
+      {item.observation && (
+        <View
+          style={[
+            styles.observationBox,
+            {
+              backgroundColor: colors.surfaceElevated,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <Text style={[styles.observationText, { color: colors.textSecondary }]}>
+            {item.observation}
+          </Text>
+        </View>
+      )}
     </View>
   );
 
@@ -236,9 +323,179 @@ export default function PlanilhaScreen() {
         }}
         style={{ flex: 1 }}
       >
+        {/* Header */}
+        <View
+          style={[
+            styles.header,
+            {
+              backgroundColor: colors.surface,
+              borderBottomColor: colors.border,
+            },
+          ]}
+        >
+          <View>
+            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
+              Planilha Operacional
+            </Text>
+
+            <TouchableOpacity
+              onPress={() => setDatePickerVisible(true)}
+              style={styles.dateButton}
+            >
+              <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
+                {formatDateLabel(date)} · {filtered.length} {filtered.length === 1 ? 'Material' : 'Materiais'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            onPress={toggle}
+            style={[
+              styles.themeButton,
+              {
+                backgroundColor: colors.surfaceElevated,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Ionicons name={mode === 'dark' ? 'sunny-outline' : 'moon-outline'} size={18} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Search & Filters */}
+        <View
+          style={[
+            styles.filterSection,
+            {
+              backgroundColor: colors.background,
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.searchBox,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Ionicons name="search" size={16} color={colors.textTertiary} />
+
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Buscar produto, lote, SC..."
+              placeholderTextColor={colors.textTertiary}
+              style={[styles.searchInput, { color: colors.textPrimary }]}
+            />
+
+            {search && (
+              <TouchableOpacity onPress={() => setSearch('')}>
+                <Ionicons name="close-circle" size={16} color={colors.textTertiary} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
+            {['Todos', ...SITUATIONS].map(situation => (
+              <TouchableOpacity
+                key={situation}
+                onPress={() => setSitFilter(situation)}
+                style={[
+                  styles.filterChip,
+                  {
+                    backgroundColor:
+                      sitFilter === situation
+                        ? colors.primary
+                        : colors.surface,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={{
+                    color: sitFilter === situation ? '#fff' : colors.textSecondary,
+                    fontWeight: '600',
+                    fontSize: 12,
+                  }}
+                >
+                  {situation}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Stats Cards */}
+        <View style={styles.statsRow}>
+          <StatCard label="Total" value={stats.total} color={colors.primary} />
+          <StatCard label="A preparar" value={stats.aPreparar} color="#FFA500" />
+          <StatCard label="Preparado" value={stats.preparado} color="#22C55E" />
+          <StatCard label="Em fábrica" value={stats.fabrica} color="#3B82F6" />
+        </View>
+
+        {/* Export Buttons */}
+        <View style={styles.exportRow}>
+          <TouchableOpacity
+            onPress={exportExcel}
+            style={[
+              styles.exportButton,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Ionicons name="document-outline" size={16} color={colors.primary} />
+            <Text style={{ color: colors.textPrimary, fontSize: 12, fontWeight: '600' }}>
+              Excel
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={exportPNG}
+            style={[
+              styles.exportButton,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Ionicons name="image-outline" size={16} color={colors.primary} />
+            <Text style={{ color: colors.textPrimary, fontSize: 12, fontWeight: '600' }}>
+              PNG
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.exportButton,
+              {
+                backgroundColor: colors.primary,
+              },
+            ]}
+            onPress={() => router.push('/(tabs)/report')}
+          >
+            <Ionicons name="chatbubble-outline" size={16} color="#fff" />
+            <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>
+              Relatório
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Content */}
         {loading ? (
           <View style={styles.empty}>
             <ActivityIndicator color={colors.primary} />
+          </View>
+        ) : filtered.length === 0 ? (
+          <View style={styles.empty}>
+            <Ionicons name="inbox-outline" size={48} color={colors.textTertiary} />
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+              Nenhum material para este dia
+            </Text>
           </View>
         ) : (
           <FlatList
@@ -253,22 +510,95 @@ export default function PlanilhaScreen() {
               />
             }
             contentContainerStyle={{
-              padding: 16,
-              paddingBottom: 120,
+              padding: 12,
+              paddingBottom: 80,
             }}
           />
         )}
       </ViewShot>
 
+      {/* FAB - Repositioned */}
       <TouchableOpacity
-        style={[styles.fab, { backgroundColor: colors.primary }]}
+        style={[
+          styles.fab,
+          {
+            backgroundColor: colors.primary,
+          },
+        ]}
         onPress={() => {
           setEditing(null);
           setFormVisible(true);
         }}
       >
-        <Ionicons name="add" size={28} color="#0B1620" />
+        <Ionicons name="add" size={28} color="#fff" />
       </TouchableOpacity>
+
+      {/* Date Picker Modal */}
+      <Modal visible={datePickerVisible} transparent animationType="slide">
+        <View style={[styles.datePickerModal, { backgroundColor: colors.background }]}>
+          <SafeAreaView style={{ flex: 1 }}>
+            <View
+              style={[
+                styles.datePickerHeader,
+                {
+                  backgroundColor: colors.surface,
+                  borderBottomColor: colors.border,
+                },
+              ]}
+            >
+              <Text style={[styles.datePickerTitle, { color: colors.textPrimary }]}>
+                Selecionar data
+              </Text>
+
+              <TouchableOpacity onPress={() => setDatePickerVisible(false)} hitSlop={10}>
+                <Ionicons name="close" size={24} color={colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              contentContainerStyle={{
+                padding: 16,
+                paddingBottom: 40,
+              }}
+            >
+              {dates.map(d => (
+                <TouchableOpacity
+                  key={d}
+                  onPress={() => {
+                    setDate(d);
+                    setDatePickerVisible(false);
+                  }}
+                  style={[
+                    styles.dateOption,
+                    {
+                      backgroundColor: date === d ? colors.primary + '22' : colors.surface,
+                      borderColor: date === d ? colors.primary : colors.border,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={{
+                      color: date === d ? colors.primary : colors.textPrimary,
+                      fontWeight: date === d ? '700' : '500',
+                    }}
+                  >
+                    {formatDateLabel(d)}
+                  </Text>
+
+                  <Text
+                    style={{
+                      color: colors.textTertiary,
+                      fontSize: 12,
+                    }}
+                  >
+                    {new Date(d).toLocaleDateString('pt-BR')}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </SafeAreaView>
+        </View>
+      </Modal>
 
       <ItemFormModal
         visible={formVisible}
@@ -281,49 +611,269 @@ export default function PlanilhaScreen() {
   );
 }
 
+function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
+  const { colors } = useTheme();
+
+  return (
+    <View
+      style={[
+        styles.statCard,
+        {
+          backgroundColor: color + '22',
+          borderColor: color + '44',
+        },
+      ]}
+    >
+      <Text
+        style={{
+          color: color,
+          fontSize: 20,
+          fontWeight: '800',
+        }}
+      >
+        {value}
+      </Text>
+
+      <Text
+        style={{
+          color: colors.textSecondary,
+          fontSize: 11,
+          fontWeight: '600',
+        }}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
+  },
+
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    gap: 12,
+  },
+
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+
+  headerSub: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+
+  dateButton: {
+    paddingVertical: 4,
+  },
+
+  themeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  filterSection: {
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
+    gap: 10,
+  },
+
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 8,
+  },
+
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+  },
+
+  filterRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+
+  statsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 4,
+    gap: 8,
+  },
+
+  statCard: {
+    flex: 1,
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+
+  exportRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+  },
+
+  exportButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
   },
 
   card: {
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    marginBottom: 12,
+    marginBottom: 10,
+    gap: 10,
+  },
+
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: 12,
   },
 
-  product: {
-    fontSize: 16,
-    fontWeight: '700',
+  badgeRow: {
+    flexDirection: 'row',
+    gap: 8,
   },
 
-  batch: {
+  unitBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+
+  productName: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+
+  productFull: {
     fontSize: 13,
   },
 
-  cardBottom: {
+  batch: {
+    fontSize: 12,
+  },
+
+  actionButtons: {
     flexDirection: 'row',
     gap: 8,
-    flexWrap: 'wrap',
+    marginBottom: 8,
+  },
+
+  iconButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  statusColumn: {
+    gap: 6,
+  },
+
+  observationBox: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+
+  observationText: {
+    fontSize: 12,
   },
 
   empty: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 12,
+  },
+
+  emptyText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
 
   fab: {
     position: 'absolute',
     right: 20,
-    bottom: Platform.OS === 'ios' ? 100 : 90,
+    bottom: Platform.OS === 'ios' ? 100 : 80,
     width: 56,
     height: 56,
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 6,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+
+  datePickerModal: {
+    flex: 1,
+  },
+
+  datePickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+  },
+
+  datePickerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+
+  dateOption: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 10,
+    gap: 4,
   },
 });

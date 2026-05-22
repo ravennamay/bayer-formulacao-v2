@@ -16,9 +16,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { api } from '../../src/auth';
+import { api, useAuth } from '../../src/auth';
 import { useTheme } from '../../src/theme';
 import { formatDateLabel, todayISO } from '../../src/types';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
 const buildLast14Days = (): string[] => {
   const out: string[] = [];
@@ -40,12 +42,14 @@ const buildLast14Days = (): string[] => {
 
 export default function ReportScreen() {
   const { colors } = useTheme();
+  const { token } = useAuth();
   const [date, setDate] = useState(todayISO());
   const [text, setText] = useState('');
   const [greeting, setGreeting] = useState('');
   const [count, setCount] = useState(0);
   const [extraObs, setExtraObs] = useState('');
   const [loading, setLoading] = useState(false);
+  const [reportFormat, setReportFormat] = useState<'whatsapp' | 'text'>('text');
 
   const generate = useCallback(async () => {
     setLoading(true);
@@ -95,6 +99,29 @@ export default function ReportScreen() {
     }
   };
 
+  const exportAsText = async () => {
+    if (!text) return;
+
+    try {
+      const filename = `relatorio_${date}.txt`;
+      const target = `${FileSystem.cacheDirectory}${filename}`;
+
+      await FileSystem.writeAsStringAsync(target, text, { encoding: 'utf8' });
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(target, {
+          mimeType: 'text/plain',
+          dialogTitle: 'Exportar relatório',
+        });
+      } else {
+        Alert.alert('Arquivo salvo', `Relatório em: ${target}`);
+      }
+    } catch (err) {
+      console.log(err);
+      Alert.alert('Erro', 'Falha ao exportar relatório');
+    }
+  };
+
   const dates = buildLast14Days();
 
   return (
@@ -103,11 +130,14 @@ export default function ReportScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        {/* Header */}
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <View>
-            <Text style={[styles.title, { color: colors.textPrimary }]}>Relatório WhatsApp</Text>
+            <Text style={[styles.title, { color: colors.textPrimary }]}>
+              Relatórios
+            </Text>
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-              {formatDateLabel(date)} · {count} {count === 1 ? 'item' : 'itens'} · {greeting}
+              {formatDateLabel(date)} · {count} {count === 1 ? 'material' : 'materiais'} · {greeting}
             </Text>
           </View>
 
@@ -116,13 +146,18 @@ export default function ReportScreen() {
             onPress={generate}
             style={[
               styles.iconBtn,
-              { backgroundColor: colors.surface, borderColor: colors.border },
+              { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
             ]}
           >
-            <Ionicons name="refresh" size={18} color={colors.textPrimary} />
+            {loading ? (
+              <ActivityIndicator size={18} color={colors.primary} />
+            ) : (
+              <Ionicons name="refresh" size={18} color={colors.primary} />
+            )}
           </TouchableOpacity>
         </View>
 
+        {/* Date Selector */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -149,7 +184,7 @@ export default function ReportScreen() {
                 <Text
                   style={{
                     color: active ? '#fff' : colors.textTertiary,
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: '600',
                   }}
                 >
@@ -158,7 +193,7 @@ export default function ReportScreen() {
                 <Text
                   style={{
                     color: active ? '#fff' : colors.textPrimary,
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: '700',
                   }}
                 >
@@ -169,8 +204,12 @@ export default function ReportScreen() {
           })}
         </ScrollView>
 
+        {/* Observations Input */}
         <View
-          style={[styles.obsRow, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          style={[
+            styles.obsRow,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
         >
           <Ionicons name="create-outline" size={16} color={colors.textTertiary} />
           <TextInput
@@ -184,6 +223,62 @@ export default function ReportScreen() {
           />
         </View>
 
+        {/* Format Tabs */}
+        <View style={styles.formatTabs}>
+          <TouchableOpacity
+            onPress={() => setReportFormat('text')}
+            style={[
+              styles.formatTab,
+              {
+                backgroundColor: reportFormat === 'text' ? colors.primary : colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Ionicons
+              name="document-text-outline"
+              size={14}
+              color={reportFormat === 'text' ? '#fff' : colors.textSecondary}
+            />
+            <Text
+              style={{
+                color: reportFormat === 'text' ? '#fff' : colors.textSecondary,
+                fontSize: 12,
+                fontWeight: '600',
+              }}
+            >
+              Texto
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setReportFormat('whatsapp')}
+            style={[
+              styles.formatTab,
+              {
+                backgroundColor: reportFormat === 'whatsapp' ? colors.primary : colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Ionicons
+              name="logo-whatsapp"
+              size={14}
+              color={reportFormat === 'whatsapp' ? '#fff' : colors.textSecondary}
+            />
+            <Text
+              style={{
+                color: reportFormat === 'whatsapp' ? '#fff' : colors.textSecondary,
+                fontSize: 12,
+                fontWeight: '600',
+              }}
+            >
+              WhatsApp
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Report Preview */}
         <ScrollView contentContainerStyle={styles.scrollBody} keyboardShouldPersistTaps="handled">
           <View
             style={[
@@ -192,15 +287,20 @@ export default function ReportScreen() {
             ]}
           >
             <View style={[styles.previewHeader, { borderBottomColor: colors.border }]}>
-              <Ionicons name="logo-whatsapp" size={16} color={colors.whatsapp} />
+              <Ionicons
+                name={reportFormat === 'whatsapp' ? 'logo-whatsapp' : 'document-text-outline'}
+                size={14}
+                color={reportFormat === 'whatsapp' ? '#25D366' : colors.primary}
+              />
               <Text
                 style={{
                   color: colors.textSecondary,
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: '700',
+                  textTransform: 'uppercase',
                 }}
               >
-                PRÉVIA DA MENSAGEM
+                {reportFormat === 'whatsapp' ? 'Prévia' : 'Relatório'}
               </Text>
             </View>
 
@@ -223,12 +323,13 @@ export default function ReportScreen() {
                   fontStyle: 'italic',
                 }}
               >
-                Nenhum item para esta data.
+                Nenhum material para esta data.
               </Text>
             )}
           </View>
         </ScrollView>
 
+        {/* Action Buttons */}
         <View
           style={[
             styles.actions,
@@ -243,30 +344,57 @@ export default function ReportScreen() {
               styles.btn,
               {
                 backgroundColor: colors.surface,
+                borderColor: colors.border,
                 opacity: text ? 1 : 0.5,
               },
             ]}
           >
-            <Ionicons name="copy-outline" size={18} color={colors.textPrimary} />
-            <Text style={{ color: colors.textPrimary, fontWeight: '700' }}>Copiar</Text>
+            <Ionicons name="copy-outline" size={16} color={colors.primary} />
+            <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 14 }}>
+              Copiar
+            </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            testID="share-whatsapp"
-            onPress={shareWhats}
-            disabled={!text}
-            style={[
-              styles.btn,
-              {
-                backgroundColor: colors.whatsapp,
-                flex: 1,
-                opacity: text ? 1 : 0.5,
-              },
-            ]}
-          >
-            <Ionicons name="logo-whatsapp" size={18} color="#fff" />
-            <Text style={{ color: '#fff', fontWeight: '700' }}>Enviar no WhatsApp</Text>
-          </TouchableOpacity>
+          {reportFormat === 'whatsapp' && (
+            <TouchableOpacity
+              testID="share-whatsapp"
+              onPress={shareWhats}
+              disabled={!text}
+              style={[
+                styles.btn,
+                {
+                  backgroundColor: '#25D366',
+                  opacity: text ? 1 : 0.5,
+                  flex: 1,
+                },
+              ]}
+            >
+              <Ionicons name="logo-whatsapp" size={16} color="#fff" />
+              <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>
+                Enviar
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {reportFormat === 'text' && (
+            <TouchableOpacity
+              onPress={exportAsText}
+              disabled={!text}
+              style={[
+                styles.btn,
+                {
+                  backgroundColor: colors.primary,
+                  opacity: text ? 1 : 0.5,
+                  flex: 1,
+                },
+              ]}
+            >
+              <Ionicons name="download-outline" size={16} color="#fff" />
+              <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>
+                Exportar
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -275,26 +403,37 @@ export default function ReportScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
+
   header: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 12,
+    paddingTop: 12,
+    paddingBottom: 14,
     borderBottomWidth: 1,
+    gap: 12,
   },
-  title: { fontSize: 22, fontWeight: '800' },
-  subtitle: { fontSize: 13, marginTop: 2 },
+
+  title: { fontSize: 20, fontWeight: '800', marginBottom: 4 },
+
+  subtitle: { fontSize: 12, fontWeight: '500' },
+
   iconBtn: {
-    width: 38,
-    height: 38,
+    width: 40,
+    height: 40,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
   },
-  dateStrip: { paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
+
+  dateStrip: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 8,
+  },
+
   dateChip: {
     width: 50,
     paddingVertical: 8,
@@ -303,6 +442,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 2,
   },
+
   obsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -311,12 +451,41 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 10,
     borderWidth: 1,
-    marginHorizontal: 16,
+    marginHorizontal: 12,
+    marginBottom: 10,
+  },
+
+  obsInput: { flex: 1, fontSize: 14 },
+
+  formatTabs: {
+    flexDirection: 'row',
+    paddingHorizontal: 12,
+    gap: 8,
     marginBottom: 12,
   },
-  obsInput: { flex: 1, fontSize: 14 },
-  scrollBody: { paddingHorizontal: 16, paddingBottom: 16 },
-  preview: { borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
+
+  formatTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+
+  scrollBody: {
+    paddingHorizontal: 12,
+    paddingBottom: 16,
+  },
+
+  preview: {
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+
   previewHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -324,26 +493,29 @@ const styles = StyleSheet.create({
     padding: 12,
     borderBottomWidth: 1,
   },
+
   previewText: {
-    padding: 16,
-    fontSize: 14,
-    lineHeight: 22,
+    padding: 14,
+    fontSize: 13,
+    lineHeight: 20,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
+
   actions: {
     flexDirection: 'row',
     gap: 8,
-    padding: 16,
+    padding: 12,
     borderTopWidth: 1,
   },
+
   btn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    height: 50,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    gap: 6,
+    height: 48,
+    paddingHorizontal: 12,
+    borderRadius: 10,
     borderWidth: 1,
   },
 });

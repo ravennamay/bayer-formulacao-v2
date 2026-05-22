@@ -67,12 +67,16 @@ export default function TabLayout() {
         options={{ tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'book' : 'book-outline'} color={color} focused={focused} colors={colors} /> }}
       />
       <Tabs.Screen
+        name="gallery"
+        options={{ tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'image' : 'image-outline'} color={color} focused={focused} colors={colors} /> }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{ tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'person' : 'person-outline'} color={color} focused={focused} colors={colors} /> }}
       />
       <Tabs.Screen name="planilha" options={{ href: null }} />
       <Tabs.Screen name="turno" options={{ href: null }} />
-      
+
       <Tabs.Screen name="explore" options={{ href: null }} />
     </Tabs>
   );

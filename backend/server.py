@@ -143,6 +143,30 @@ def create_access_token(
     )
 
 
+def create_reset_token(
+    user_id: str,
+    email: str,
+) -> str:
+    expire = datetime.now(
+        timezone.utc
+    ) + timedelta(
+        minutes=30
+    )
+
+    payload = {
+        "sub": user_id,
+        "email": email,
+        "type": "reset",
+        "exp": int(expire.timestamp()),
+    }
+
+    return jwt.encode(
+        payload,
+        JWT_SECRET,
+        algorithm=JWT_ALGORITHM,
+    )
+
+
 def auto_abbreviate(name: str) -> str:
     name = (name or "").strip()
 
@@ -206,6 +230,19 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserPublic
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    password: str = Field(min_length=6)
+
+
+class PasswordResetResponse(BaseModel):
+    message: str = "Senha redefinida com sucesso"
 
 
 class ProductionItem(BaseModel):
@@ -285,6 +322,27 @@ class ReportRequest(BaseModel):
     extra_observations: Optional[str] = None
 
 
+class Recipe(BaseModel):
+    name: str
+    abbr: str
+    description: Optional[str] = None
+    ingredients: Optional[list[str]] = None
+    procedure: Optional[str] = None
+    category: str = "produtos"
+
+
+class GalleryImage(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    url: str
+    caption: Optional[str] = None
+    category: str = "geral"
+    created_at: str = Field(
+        default_factory=lambda:
+        datetime.now(timezone.utc).isoformat()
+    )
+
+
 # =========================================================
 # APP
 # =========================================================
@@ -315,6 +373,20 @@ async def lifespan(app: FastAPI):
     await db.products.create_index(
         "name",
         unique=True,
+    )
+
+    await db.password_resets.create_index(
+        "user_id",
+        unique=True,
+    )
+
+    await db.gallery.create_index(
+        "id",
+        unique=True,
+    )
+
+    await db.gallery.create_index(
+        "created_at"
     )
 
     admin_email = os.getenv(
@@ -587,6 +659,144 @@ async def me(
     )
 
 
+@api_router.post("/auth/forgot-password")
+async def forgot_password(
+    payload: ForgotPasswordRequest,
+):
+
+    email = payload.email.lower()
+
+    user = await db.users.find_one({
+        "email": email
+    })
+
+    if not user:
+        return {
+            "message": "Se o e-mail existir, um link de reset será enviado"
+        }
+
+    reset_token = create_reset_token(
+        user["id"],
+        email,
+    )
+
+    await db.password_resets.update_one(
+        {"user_id": user["id"]},
+        {
+            "$set": {
+                "user_id": user["id"],
+                "email": email,
+                "token": reset_token,
+                "created_at": datetime.now(
+                    timezone.utc
+                ).isoformat(),
+                "used": False,
+            }
+        },
+        upsert=True,
+    )
+
+    logger.info(
+        "Reset token criado para: %s",
+        email,
+    )
+
+    return {
+        "message": "Se o e-mail existir, um link de reset será enviado",
+        "reset_token": reset_token,
+    }
+
+
+@api_router.post(
+    "/auth/reset-password",
+    response_model=PasswordResetResponse,
+)
+async def reset_password(
+    payload: ResetPasswordRequest,
+):
+
+    try:
+
+        decoded = jwt.decode(
+            payload.token,
+            JWT_SECRET,
+            algorithms=[JWT_ALGORITHM],
+        )
+
+        if decoded.get("type") != "reset":
+            raise HTTPException(
+                status_code=400,
+                detail="Token inválido",
+            )
+
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=400,
+            detail="Link expirado. Solicite um novo reset",
+        )
+
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=400,
+            detail="Token inválido",
+        )
+
+    user_id = decoded.get("sub")
+
+    user = await db.users.find_one({
+        "id": user_id
+    })
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="Usuário não encontrado",
+        )
+
+    reset_record = await db.password_resets.find_one({
+        "user_id": user_id,
+    })
+
+    if reset_record and reset_record.get("used"):
+        raise HTTPException(
+            status_code=400,
+            detail="Este link de reset já foi utilizado",
+        )
+
+    await db.users.update_one(
+        {"id": user_id},
+        {
+            "$set": {
+                "password_hash": hash_password(
+                    payload.password
+                ),
+                "updated_at": datetime.now(
+                    timezone.utc
+                ).isoformat(),
+            }
+        },
+    )
+
+    await db.password_resets.update_one(
+        {"user_id": user_id},
+        {
+            "$set": {
+                "used": True,
+                "used_at": datetime.now(
+                    timezone.utc
+                ).isoformat(),
+            }
+        },
+    )
+
+    logger.info(
+        "Senha resetada para: %s",
+        user["email"],
+    )
+
+    return PasswordResetResponse()
+
+
 # =========================================================
 # ITEMS
 # =========================================================
@@ -765,6 +975,160 @@ async def add_product(
         "name": payload.name,
         "abbr": abbr,
     }
+
+
+# =========================================================
+# RECIPES
+# =========================================================
+
+DEFAULT_RECIPES = [
+    {
+        "name": "VERANGO",
+        "abbr": "VER",
+        "category": "produtos",
+        "description": "Fungicida sistêmico para folhas",
+        "ingredients": ["Trifloxystrobin", "Fluopyram"],
+        "procedure": "Aplicar de acordo com recomendações técnicas",
+    },
+    {
+        "name": "NATIVO",
+        "abbr": "NAT",
+        "category": "produtos",
+        "description": "Fungicida de contato e sistêmico",
+        "ingredients": ["Trifloxystrobin", "Tebucconazole"],
+        "procedure": "Pulverizar uniformemente a cultura",
+    },
+    {
+        "name": "OBERON",
+        "abbr": "OBE",
+        "category": "produtos",
+        "description": "Acaricida seletivo",
+        "ingredients": ["Spiromesifen"],
+        "procedure": "Indicado para controle de ácaros",
+    },
+    {
+        "name": "FOX XPRO",
+        "abbr": "FXX",
+        "category": "produtos",
+        "description": "Fungicida tríplice ação",
+        "ingredients": ["Trifloxystrobin", "Protioconazole", "Bixafen"],
+        "procedure": "Aplicação em estágio inicial de infecção",
+    },
+    {
+        "name": "FOX",
+        "abbr": "FOX",
+        "category": "produtos",
+        "description": "Fungicida dupla ação",
+        "ingredients": ["Trifloxystrobin", "Protioconazole"],
+        "procedure": "Pulverização recomendada",
+    },
+    {
+        "name": "BELT",
+        "abbr": "BEL",
+        "category": "produtos",
+        "description": "Inseticida neonicotinóide",
+        "ingredients": ["Flubendiamide"],
+        "procedure": "Controle de lepidópteros",
+    },
+]
+
+
+@api_router.get("/recipes")
+async def list_recipes(
+    category: Optional[str] = None,
+    user: dict = Depends(get_current_user),
+):
+
+    recipes = DEFAULT_RECIPES
+
+    if category:
+        recipes = [
+            r for r in recipes
+            if r.get("category") == category
+        ]
+
+    return recipes
+
+
+# =========================================================
+# GALLERY
+# =========================================================
+
+
+@api_router.get("/gallery")
+async def list_gallery(
+    category: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 50,
+    user: dict = Depends(get_current_user),
+):
+
+    query = {}
+
+    if category:
+        query["category"] = category
+
+    images = await db.gallery.find(
+        query,
+        {"_id": 0},
+    ).sort(
+        "created_at",
+        -1,
+    ).skip(skip).limit(limit).to_list(limit)
+
+    return images
+
+
+@api_router.post("/gallery")
+async def add_gallery_image(
+    payload: dict,
+    user: dict = Depends(get_current_user),
+):
+
+    image_doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "user_name": user.get("name", ""),
+        "url": payload.get("url"),
+        "caption": payload.get("caption", ""),
+        "category": payload.get("category", "geral"),
+        "created_at": datetime.now(
+            timezone.utc
+        ).isoformat(),
+    }
+
+    await db.gallery.insert_one(image_doc)
+
+    return image_doc
+
+
+@api_router.delete("/gallery/{image_id}")
+async def delete_gallery_image(
+    image_id: str,
+    user: dict = Depends(get_current_user),
+):
+
+    img = await db.gallery.find_one({
+        "id": image_id
+    })
+
+    if not img:
+        raise HTTPException(
+            status_code=404,
+            detail="Imagem não encontrada",
+        )
+
+    if img["user_id"] != user["id"] and user.get("role") != "admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Não autorizado",
+        )
+
+    await db.gallery.delete_one({
+        "id": image_id
+    })
+
+    return {"ok": True}
 
 
 # =========================================================

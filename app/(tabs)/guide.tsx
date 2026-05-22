@@ -14,13 +14,12 @@ import { api } from "../../src/auth";
 import { useTheme } from "../../src/theme";
 
 type Recipe = {
-  product: string;
-  recipe: string;
-  active_ingredient: string;
+  name: string;
+  abbr: string;
+  description: string;
+  ingredients: string[];
+  procedure: string;
   category: string;
-  func: string; // FIX: renamed
-  application: string;
-  notes: string;
 };
 
 type Chemistry = {
@@ -52,9 +51,9 @@ export default function GuiaScreen() {
       try {
         const r = await api.get("/recipes");
 
-        setRecipes(r.data.recipes ?? []);
-        setChemistry(r.data.chemistry ?? []);
-        setProcedures(r.data.procedures ?? []);
+        setRecipes(r.data ?? []);
+        setChemistry([]);
+        setProcedures([]);
       } catch (e) {
         console.log("Erro recipes:", e);
       } finally {
@@ -68,7 +67,7 @@ export default function GuiaScreen() {
   const filteredRecipes = useMemo(() => {
     if (!q) return recipes;
     return recipes.filter((r) =>
-      `${r.product} ${r.recipe} ${r.active_ingredient} ${r.category}`
+      `${r.name} ${r.abbr} ${r.description} ${r.category} ${r.ingredients.join(' ')}`
         .toLowerCase()
         .includes(q)
     );
@@ -170,24 +169,22 @@ export default function GuiaScreen() {
           {/* PRODUTOS */}
           {tab === "produtos" &&
             filteredRecipes.map((r, i) => {
-              const key = `p-${r.product}-${i}`;
+              const key = `p-${r.name}-${i}`;
               const open = expanded === key;
 
               return (
                 <Card
                   key={key}
-                  title={r.product}
-                  subtitle={r.recipe}
+                  title={r.name}
+                  subtitle={r.abbr}
                   icon="flask"
                   colors={colors}
                   open={open}
                   onPress={() => toggle(key)}
                 >
-                  <KV k="Ativo" v={r.active_ingredient} colors={colors} />
-                  <KV k="Categoria" v={r.category} colors={colors} />
-                  <KV k="Função" v={r.func} colors={colors} />
-                  <KV k="Aplicação" v={r.application} colors={colors} />
-                  <KV k="Obs" v={r.notes} colors={colors} />
+                  <KV k="Descrição" v={r.description} colors={colors} />
+                  <KV k="Ingredientes" v={r.ingredients.join(', ')} colors={colors} />
+                  <KV k="Procedimento" v={r.procedure} colors={colors} />
                 </Card>
               );
             })}
