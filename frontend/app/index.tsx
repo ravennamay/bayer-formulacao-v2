@@ -1,5 +1,6 @@
-import { Redirect } from 'expo-router';
+import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
+import { Redirect } from 'expo-router';
 
 import { useAuth } from '../../src/auth';
 import { useTheme } from '../../src/theme';
@@ -22,9 +23,6 @@ export default function Index() {
       </View>
     );
   }
-  if (user) {
-    return <Redirect href="/(tabs)" />;
-  }
 
-  return <Redirect href="/login" />;
+  return <Redirect href={user ? '/(tabs)' : '/login'} />;
 }

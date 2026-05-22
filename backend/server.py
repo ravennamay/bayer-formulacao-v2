@@ -2,89 +2,188 @@ from dotenv import load_dotenv
 from pathlib import Path
 from contextlib import asynccontextmanager
 
-ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / ".env")
-
 import io
 import os
-import logging
 import uuid
+import logging
+
 from datetime import datetime, timezone, timedelta
-from typing import List, Optional
+from typing import Optional, Any
 
 import bcrypt
 import jwt
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request
-from fastapi.responses import StreamingResponse
-from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
-from pydantic import BaseModel, EmailStr, Field
 import openpyxl
 
+from motor.motor_asyncio import AsyncIOMotorClient
 
-# ---------- Database ----------
-mongo_url = os.environ["MONGO_URL"]
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ["DB_NAME"]]
+from fastapi import (
+    FastAPI,
+    APIRouter,
+    HTTPException,
+    Depends,
+    Request,
+)
 
+from fastapi.responses import StreamingResponse
 
-# ---------- Constants ----------
+from starlette.middleware.cors import CORSMiddleware
+
+from pydantic import BaseModel, EmailStr, Field
+
+from openpyxl.styles import (
+    Font,
+    PatternFill,
+    Alignment,
+    Border,
+    Side,
+)
+
+# =========================================================
+# ENV
+# =========================================================
+
+ROOT_DIR = Path(__file__).parent
+load_dotenv(ROOT_DIR / ".env")
+
+MONGO_URL = os.getenv("MONGO_URL")
+DB_NAME = os.getenv("DB_NAME", "bayer_db")
+JWT_SECRET = os.getenv("JWT_SECRET", "super_secret_key")
+
+if not MONGO_URL:
+    raise RuntimeError("MONGO_URL não configurado")
+
+# =========================================================
+# DATABASE
+# =========================================================
+
+client = AsyncIOMotorClient(MONGO_URL)
+db = client[DB_NAME]
+
+# =========================================================
+# LOGGING
+# =========================================================
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+
+logger = logging.getLogger(__name__)
+
+# =========================================================
+# CONSTANTS
+# =========================================================
+
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
 
 DEFAULT_PRODUCTS = [
-    {"name": "Nativo", "abbr": "NAT"},
-    {"name": "Verango", "abbr": "VER"},
-    {"name": "Oberon", "abbr": "OBE"},
-    {"name": "Fox Xpro", "abbr": "FXX"},
-    {"name": "Connect", "abbr": "CON"},
-    {"name": "Belt", "abbr": "BEL"},
-    {"name": "Decis", "abbr": "DEC"},
-    {"name": "Movento", "abbr": "MOV"},
-    {"name": "Fox", "abbr": "FOX"},
+  { "name": "ALSYSTIN", "abbr": "ALS" },
+  { "name": "BULLDOCK", "abbr": "BUL" },
+  { "name": "CONNECT", "abbr": "CON" },
+  { "name": "CURBIX", "abbr": "CUR" },
+  { "name": "FOX", "abbr": "FOX" },
+  { "name": "FOX XPRO", "abbr": "FXX" },
+  { "name": "NATIVO", "abbr": "NAT" },
+  { "name": "OBERON", "abbr": "OBE" },
+  { "name": "PREMIER PLUS", "abbr": "PRP" },
+  { "name": "PROVADO", "abbr": "PRO" },
+  { "name": "SPHERE MAX", "abbr": "SPM" },
+  { "name": "FINISH", "abbr": "FIN" },
+  { "name": "SOBERAN", "abbr": "SOB" },
+  { "name": "VERANGO", "abbr": "VER" },
+  { "name": "BELT", "abbr": "BEL" },
+  { "name": "MOVENTO", "abbr": "MOV" },
+  { "name": "DECIS", "abbr": "DEC" }
 ]
 
+# =========================================================
+# HELPERS
+# =========================================================
 
-# ---------- Helpers ----------
+
 def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    return bcrypt.hashpw(
+        password.encode("utf-8"),
+        bcrypt.gensalt(),
+    ).decode("utf-8")
 
 
-def verify_password(plain: str, hashed: str) -> bool:
-    return bcrypt.checkpw(plain.encode(), hashed.encode())
+def verify_password(
+    plain: str,
+    hashed: str,
+) -> bool:
+    return bcrypt.checkpw(
+        plain.encode("utf-8"),
+        hashed.encode("utf-8"),
+    )
 
 
-def create_access_token(user_id: str, email: str) -> str:
+def create_access_token(
+    user_id: str,
+    email: str,
+) -> str:
+    expire = datetime.now(
+        timezone.utc
+    ) + timedelta(
+        minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+
     payload = {
         "sub": user_id,
         "email": email,
-        "exp": datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
         "type": "access",
+        "exp": int(expire.timestamp()),
     }
-    return jwt.encode(payload, os.environ["JWT_SECRET"], algorithm=JWT_ALGORITHM)
+
+    return jwt.encode(
+        payload,
+        JWT_SECRET,
+        algorithm=JWT_ALGORITHM,
+    )
 
 
 def auto_abbreviate(name: str) -> str:
     name = (name or "").strip()
+
     if not name:
         return ""
+
     for p in DEFAULT_PRODUCTS:
         if p["name"].lower() == name.lower():
             return p["abbr"]
-    cleaned = "".join(c for c in name if c.isalpha())
-    return cleaned[:3].upper() if cleaned else name[:3].upper()
+
+    cleaned = "".join(
+        c for c in name if c.isalpha()
+    )
+
+    if cleaned:
+        return cleaned[:3].upper()
+
+    return name[:3].upper()
 
 
 def greeting_for_now() -> str:
-    now = datetime.now(timezone.utc) - timedelta(hours=3)
-    if 5 <= now.hour < 12:
+    now = datetime.now(
+        timezone.utc
+    ) - timedelta(hours=3)
+
+    hour = now.hour
+
+    if 5 <= hour < 12:
         return "Bom dia"
-    if 12 <= now.hour < 18:
+
+    if 12 <= hour < 18:
         return "Boa tarde"
+
     return "Boa noite"
 
 
-# ---------- Models ----------
+# =========================================================
+# MODELS
+# =========================================================
+
+
 class UserPublic(BaseModel):
     id: str
     email: str
@@ -94,8 +193,8 @@ class UserPublic(BaseModel):
 
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=4)
-    name: str
+    password: str = Field(min_length=6)
+    name: str = Field(min_length=1)
 
 
 class LoginRequest(BaseModel):
@@ -110,272 +209,772 @@ class TokenResponse(BaseModel):
 
 
 class ProductionItem(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    id: str = Field(
+        default_factory=lambda: str(uuid.uuid4())
+    )
+
     date: str
     unit: str
     sc: str
+
     product: str
     product_abbr: str = ""
+
     batch: str
+
     quantity: Optional[float] = None
-    quantity_unit: str = "kg"
+    quantity_unit: str = "bag"
+
     material_status: str = "Disponível"
     situation: str = "A preparar"
+
     observation: str = ""
-    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
-    updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+    created_at: str = Field(
+        default_factory=lambda:
+        datetime.now(timezone.utc).isoformat()
+    )
+
+    updated_at: str = Field(
+        default_factory=lambda:
+        datetime.now(timezone.utc).isoformat()
+    )
 
 
 class ProductionItemCreate(BaseModel):
     date: str
     unit: str
     sc: str
+
     product: str
     batch: str
+
     quantity: Optional[float] = None
     quantity_unit: str = "kg"
+
     material_status: str = "Disponível"
     situation: str = "A preparar"
+
     observation: str = ""
 
 
 class ProductionItemUpdate(BaseModel):
     unit: Optional[str] = None
     sc: Optional[str] = None
+
     product: Optional[str] = None
     batch: Optional[str] = None
+
     quantity: Optional[float] = None
     quantity_unit: Optional[str] = None
+
     material_status: Optional[str] = None
     situation: Optional[str] = None
+
     observation: Optional[str] = None
     date: Optional[str] = None
 
 
-# ---------- Lifespan (SUBSTITUI startup/shutdown) ----------
+class ProductCreate(BaseModel):
+    name: str
+    abbr: Optional[str] = None
+
+
+class ReportRequest(BaseModel):
+    date: str
+    extra_observations: Optional[str] = None
+
+
+# =========================================================
+# APP
+# =========================================================
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await db.users.create_index("email", unique=True)
-    await db.production_items.create_index("id", unique=True)
-    await db.products.create_index("id", unique=True)
-    print("🚀 Server started")
+
+    await db.users.create_index(
+        "email",
+        unique=True,
+    )
+
+    await db.users.create_index(
+        "id",
+        unique=True,
+    )
+
+    await db.production_items.create_index(
+        "id",
+        unique=True,
+    )
+
+    await db.production_items.create_index(
+        "date"
+    )
+
+    await db.products.create_index(
+        "name",
+        unique=True,
+    )
+
+    admin_email = os.getenv(
+        "ADMIN_EMAIL",
+        "admin@bayer.com",
+    ).lower()
+
+    admin_password = os.getenv(
+        "ADMIN_PASSWORD",
+        "admin123",
+    )
+
+    existing = await db.users.find_one({
+        "email": admin_email
+    })
+
+    if existing is None:
+
+        await db.users.insert_one({
+            "id": str(uuid.uuid4()),
+            "email": admin_email,
+            "password_hash": hash_password(
+                admin_password
+            ),
+            "name": "Administrador",
+            "role": "admin",
+            "created_at": datetime.now(
+                timezone.utc
+            ).isoformat(),
+        })
+
+        logger.info(
+            "Admin criado: %s",
+            admin_email,
+        )
 
     yield
 
     client.close()
-    print("🛑 Server stopped")
 
 
-# ---------- App ----------
-app = FastAPI(title="Bayer Production Control", lifespan=lifespan)
-api_router = APIRouter(prefix="/api")
+app = FastAPI(
+    title="Bayer Production Control",
+    lifespan=lifespan,
+)
+
+api_router = APIRouter(
+    prefix="/api"
+)
+
+# =========================================================
+# CORS
+# =========================================================
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origins=os.getenv(
+        "CORS_ORIGINS",
+        "*",
+    ).split(","),
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# =========================================================
+# AUTH
+# =========================================================
 
 
-# ---------- Auth ----------
-async def get_current_user(request: Request):
-    auth = request.headers.get("Authorization", "")
-    token = auth.replace("Bearer ", "")
+async def get_current_user(
+    request: Request,
+) -> dict[str, Any]:
+
+    auth_header = request.headers.get(
+        "Authorization",
+        "",
+    )
+
+    token = ""
+
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
 
     if not token:
-        raise HTTPException(401, "Não autenticado")
+        raise HTTPException(
+            status_code=401,
+            detail="Não autenticado",
+        )
 
     try:
-        payload = jwt.decode(token, os.environ["JWT_SECRET"], algorithms=[JWT_ALGORITHM])
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(401, "Token expirado")
-    except jwt.InvalidTokenError:
-        raise HTTPException(401, "Token inválido")
 
-    user = await db.users.find_one({"id": payload["sub"]}, {"_id": 0, "password_hash": 0})
+        payload = jwt.decode(
+            token,
+            JWT_SECRET,
+            algorithms=[JWT_ALGORITHM],
+        )
+
+        if payload.get("type") != "access":
+            raise HTTPException(
+                status_code=401,
+                detail="Token inválido",
+            )
+
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=401,
+            detail="Token expirado",
+        )
+
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=401,
+            detail="Token inválido",
+        )
+
+    user = await db.users.find_one(
+        {"id": payload["sub"]},
+        {"_id": 0, "password_hash": 0},
+    )
+
     if not user:
-        raise HTTPException(401, "Usuário não encontrado")
+        raise HTTPException(
+            status_code=401,
+            detail="Usuário não encontrado",
+        )
 
     return user
 
 
-# ---------- Routes ----------
-@api_router.post("/auth/register", response_model=TokenResponse)
-async def register(payload: RegisterRequest):
+# =========================================================
+# ROUTES
+# =========================================================
+
+
+@api_router.get("/")
+async def root():
+    return {
+        "service": "Bayer Production Control",
+        "ok": True,
+    }
+
+
+@api_router.get("/health")
+async def health():
+    return {
+        "status": "ok",
+        "timestamp": datetime.now(
+            timezone.utc
+        ),
+    }
+
+
+# =========================================================
+# AUTH ROUTES
+# =========================================================
+
+
+@api_router.post(
+    "/auth/register",
+    response_model=TokenResponse,
+)
+async def register(
+    payload: RegisterRequest
+):
+
     email = payload.email.lower()
 
-    if await db.users.find_one({"email": email}):
-        raise HTTPException(400, "E-mail já cadastrado")
+    existing = await db.users.find_one({
+        "email": email
+    })
+
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail="E-mail já cadastrado",
+        )
 
     user_id = str(uuid.uuid4())
 
     await db.users.insert_one({
         "id": user_id,
         "email": email,
-        "password_hash": hash_password(payload.password),
+        "password_hash": hash_password(
+            payload.password
+        ),
         "name": payload.name,
         "role": "user",
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(
+            timezone.utc
+        ).isoformat(),
     })
 
-    token = create_access_token(user_id, email)
+    token = create_access_token(
+        user_id,
+        email,
+    )
 
     return TokenResponse(
         access_token=token,
-        user=UserPublic(id=user_id, email=email, name=payload.name)
+        user=UserPublic(
+            id=user_id,
+            email=email,
+            name=payload.name,
+            role="user",
+        ),
     )
 
 
-@api_router.post("/auth/login", response_model=TokenResponse)
-async def login(payload: LoginRequest):
+@api_router.post(
+    "/auth/login",
+    response_model=TokenResponse,
+)
+async def login(
+    payload: LoginRequest
+):
+
     email = payload.email.lower()
-    user = await db.users.find_one({"email": email})
 
-    if not user or not verify_password(payload.password, user["password_hash"]):
-        raise HTTPException(401, "Credenciais inválidas")
+    user = await db.users.find_one({
+        "email": email
+    })
 
-    token = create_access_token(user["id"], email)
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="E-mail ou senha inválidos",
+        )
+
+    if not verify_password(
+        payload.password,
+        user["password_hash"],
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="E-mail ou senha inválidos",
+        )
+
+    token = create_access_token(
+        user["id"],
+        email,
+    )
 
     return TokenResponse(
         access_token=token,
-        user=UserPublic(id=user["id"], email=email, name=user["name"])
+        user=UserPublic(
+            id=user["id"],
+            email=email,
+            name=user.get("name", ""),
+            role=user.get("role", "user"),
+        ),
     )
 
 
-# ---------- Excel ----------
-@api_router.get("/export/excel")
-async def export_excel(date: str, user: dict = Depends(get_current_user)):
-    items = await db.production_items.find({"date": date}).to_list(2000)
+@api_router.get(
+    "/auth/me",
+    response_model=UserPublic,
+)
+async def me(
+    user: dict = Depends(
+        get_current_user
+    )
+):
 
-    wb = openpyxl.Workbook()
-    ws = wb.active
-
-    ws.append(["Produto", "Lote"])
-
-    for it in items:
-        ws.append([it.get("product"), it.get("batch")])
-
-    buf = io.BytesIO()
-    wb.save(buf)
-    buf.seek(0)
-
-    return StreamingResponse(
-        buf,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": 'attachment; filename="relatorio.xlsx"'},
+    return UserPublic(
+        id=user["id"],
+        email=user["email"],
+        name=user.get("name", ""),
+        role=user.get("role", "user"),
     )
 
 
-# ---------- New Models ----------
-class ProductCreate(BaseModel):
-    name: str
-    abbr: str
-    category: str = "Fungicida"
-    description: str = ""
-    bag_weight: str = "Consultar NF"
+# =========================================================
+# ITEMS
+# =========================================================
 
-class UserRoleUpdate(BaseModel):
-    role: str
 
-# ---------- Admin helper ----------
-async def require_admin(user: dict = Depends(get_current_user)):
-    if user.get("role") != "admin":
-        raise HTTPException(403, "Acesso restrito a administradores")
-    return user
+@api_router.get("/items")
+async def list_items(
+    date: Optional[str] = None,
+    user: dict = Depends(get_current_user),
+):
 
-# ---------- Production CRUD ----------
-@api_router.get("/production")
-async def list_production(date: str = None, user: dict = Depends(get_current_user)):
-    query = {"date": date} if date else {}
-    items = await db.production_items.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
+    query = {}
+
+    if date:
+        query["date"] = date
+
+    items = await db.production_items.find(
+        query,
+        {"_id": 0},
+    ).sort(
+        "created_at",
+        1,
+    ).to_list(2000)
+
     return items
 
-@api_router.post("/production")
-async def create_production(payload: ProductionItemCreate, user: dict = Depends(get_current_user)):
-    item_id = str(uuid.uuid4())
-    item = {"id": item_id, "date": payload.date, "unit": payload.unit, "sc": payload.sc, "product": payload.product, "product_abbr": auto_abbreviate(payload.product), "batch": payload.batch, "quantity": payload.quantity, "quantity_unit": payload.quantity_unit, "material_status": payload.material_status, "situation": payload.situation, "observation": payload.observation, "created_by": user["id"], "created_at": datetime.now(timezone.utc).isoformat(), "updated_at": datetime.now(timezone.utc).isoformat()}
-    await db.production_items.insert_one(item)
-    item.pop("_id", None)
+
+@api_router.post(
+    "/items",
+    response_model=ProductionItem,
+)
+async def create_item(
+    payload: ProductionItemCreate,
+    user: dict = Depends(get_current_user),
+):
+
+    item = ProductionItem(
+        **payload.model_dump(),
+        product_abbr=auto_abbreviate(
+            payload.product
+        ),
+    )
+
+    await db.production_items.insert_one(
+        item.model_dump()
+    )
+
     return item
 
-@api_router.patch("/production/{item_id}")
-async def update_production(item_id: str, payload: ProductionItemUpdate, user: dict = Depends(get_current_user)):
-    existing = await db.production_items.find_one({"id": item_id})
-    if not existing:
-        raise HTTPException(404, "Item nao encontrado")
-    if existing.get("created_by") != user["id"] and user.get("role") != "admin":
-        raise HTTPException(403, "Sem permissao")
-    updates = {k: v for k, v in payload.dict(exclude_unset=True).items() if v is not None}
-    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
-    await db.production_items.update_one({"id": item_id}, {"$set": updates})
-    updated = await db.production_items.find_one({"id": item_id}, {"_id": 0})
-    return updated
 
-@api_router.delete("/production/{item_id}")
-async def delete_production(item_id: str, user: dict = Depends(get_current_user)):
-    existing = await db.production_items.find_one({"id": item_id})
+@api_router.put(
+    "/items/{item_id}",
+    response_model=ProductionItem,
+)
+async def update_item(
+    item_id: str,
+    payload: ProductionItemUpdate,
+    user: dict = Depends(get_current_user),
+):
+
+    existing = await db.production_items.find_one(
+        {"id": item_id},
+        {"_id": 0},
+    )
+
     if not existing:
-        raise HTTPException(404, "Item nao encontrado")
-    if existing.get("created_by") != user["id"] and user.get("role") != "admin":
-        raise HTTPException(403, "Sem permissao")
-    await db.production_items.delete_one({"id": item_id})
+        raise HTTPException(
+            status_code=404,
+            detail="Item não encontrado",
+        )
+
+    update = {
+        k: v
+        for k, v in payload.model_dump(
+            exclude_unset=True
+        ).items()
+        if v is not None
+    }
+
+    if "product" in update:
+        update["product_abbr"] = auto_abbreviate(
+            update["product"]
+        )
+
+    update["updated_at"] = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    await db.production_items.update_one(
+        {"id": item_id},
+        {"$set": update},
+    )
+
+    merged = {
+        **existing,
+        **update,
+    }
+
+    return ProductionItem(**merged)
+
+
+@api_router.delete("/items/{item_id}")
+async def delete_item(
+    item_id: str,
+    user: dict = Depends(get_current_user),
+):
+
+    result = await db.production_items.delete_one({
+        "id": item_id
+    })
+
+    if result.deleted_count == 0:
+        raise HTTPException(
+            status_code=404,
+            detail="Item não encontrado",
+        )
+
     return {"ok": True}
 
-# ---------- Products ----------
+
+# =========================================================
+# PRODUCTS
+# =========================================================
+
+
 @api_router.get("/products")
-async def list_products(user: dict = Depends(get_current_user)):
-    products = await db.products.find({}, {"_id": 0}).to_list(200)
-    if not products:
-        return DEFAULT_PRODUCTS
-    return products
+async def list_products(
+    user: dict = Depends(get_current_user),
+):
+
+    custom = await db.products.find(
+        {},
+        {"_id": 0},
+    ).to_list(500)
+
+    merged = {
+        p["name"]: p["abbr"]
+        for p in DEFAULT_PRODUCTS
+    }
+
+    for item in custom:
+        merged[item["name"]] = item["abbr"]
+
+    return [
+        {
+            "name": k,
+            "abbr": v,
+        }
+        for k, v in merged.items()
+    ]
+
 
 @api_router.post("/products")
-async def create_product(payload: ProductCreate, user: dict = Depends(require_admin)):
-    prod = {"id": str(uuid.uuid4()), "name": payload.name, "abbr": payload.abbr, "category": payload.category, "description": payload.description, "bag_weight": payload.bag_weight}
-    await db.products.insert_one(prod)
-    prod.pop("_id", None)
-    return prod
+async def add_product(
+    payload: ProductCreate,
+    user: dict = Depends(get_current_user),
+):
 
-@api_router.delete("/products/{product_id}")
-async def delete_product(product_id: str, user: dict = Depends(require_admin)):
-    result = await db.products.delete_one({"id": product_id})
-    if result.deleted_count == 0:
-        raise HTTPException(404, "Produto nao encontrado")
-    return {"ok": True}
+    abbr = (
+        payload.abbr
+        or auto_abbreviate(payload.name)
+    ).upper()
 
-# ---------- Admin Routes ----------
-@api_router.get("/admin/users")
-async def admin_list_users(user: dict = Depends(require_admin)):
-    users = await db.users.find({}, {"_id": 0, "password_hash": 0}).to_list(500)
-    return users
+    await db.products.update_one(
+        {"name": payload.name},
+        {
+            "$set": {
+                "name": payload.name,
+                "abbr": abbr,
+            }
+        },
+        upsert=True,
+    )
 
-@api_router.patch("/admin/users/{user_id}/role")
-async def admin_update_role(user_id: str, payload: UserRoleUpdate, user: dict = Depends(require_admin)):
-    result = await db.users.update_one({"id": user_id}, {"$set": {"role": payload.role}})
-    if result.matched_count == 0:
-        raise HTTPException(404, "Usuario nao encontrado")
-    updated = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
-    return updated
+    return {
+        "name": payload.name,
+        "abbr": abbr,
+    }
 
-@api_router.delete("/admin/users/{user_id}")
-async def admin_delete_user(user_id: str, user: dict = Depends(require_admin)):
-    if user_id == user["id"]:
-        raise HTTPException(400, "Nao pode deletar sua propria conta")
-    result = await db.users.delete_one({"id": user_id})
-    if result.deleted_count == 0:
-        raise HTTPException(404, "Usuario nao encontrado")
-    return {"ok": True}
 
-@api_router.get("/admin/stats")
-async def admin_stats(user: dict = Depends(require_admin)):
-    total_users = await db.users.count_documents({})
-    total_items = await db.production_items.count_documents({})
-    total_products = await db.products.count_documents({})
-    return {"total_users": total_users, "total_items": total_items, "total_products": total_products}
+# =========================================================
+# REPORT
+# =========================================================
 
-# ---------- Final ----------
+
+def build_report(
+    items: list[dict],
+    greeting: str,
+    extra_obs: Optional[str],
+):
+
+    lines = []
+
+    lines.append(
+        f"*{greeting}, segue a situação dos materiais para o próximo turno:*"
+    )
+
+    lines.append("")
+
+    for item in items:
+
+        qty = ""
+
+        if item.get("quantity") is not None:
+            qty = (
+                f" - {item['quantity']:g}"
+                f"{item.get('quantity_unit', '')}"
+            )
+
+        obs = item.get(
+            "observation",
+            "",
+        ).strip()
+
+        obs_text = f" — _{obs}_" if obs else ""
+
+        lines.append(
+            f"• {item.get('unit')} | "
+            f"{item.get('sc')} | "
+            f"{item.get('product')} | "
+            f"Lote {item.get('batch')}"
+            f"{qty} | "
+            f"{item.get('situation')}"
+            f"{obs_text}"
+        )
+
+    if extra_obs:
+        lines.append("")
+        lines.append(f"📝 {extra_obs}")
+
+    return "\n".join(lines)
+
+
+@api_router.post("/reports/whatsapp")
+async def whatsapp_report(
+    payload: ReportRequest,
+    user: dict = Depends(get_current_user),
+):
+
+    items = await db.production_items.find(
+        {"date": payload.date},
+        {"_id": 0},
+    ).to_list(2000)
+
+    greeting = greeting_for_now()
+
+    text = build_report(
+        items,
+        greeting,
+        payload.extra_observations,
+    )
+
+    return {
+        "text": text,
+        "count": len(items),
+        "greeting": greeting,
+    }
+
+
+# =========================================================
+# EXCEL EXPORT
+# =========================================================
+
+
+@api_router.get("/export/excel")
+async def export_excel(
+    date: str,
+    user: dict = Depends(get_current_user),
+):
+
+    items = await db.production_items.find(
+        {"date": date},
+        {"_id": 0},
+    ).to_list(2000)
+
+    wb = openpyxl.Workbook()
+
+    ws = wb.active
+    ws.title = f"Bayer {date}"
+
+    headers = [
+        "Unidade",
+        "SC",
+        "Produto",
+        "Abrev",
+        "Lote",
+        "Quantidade",
+        "Status MP",
+        "Situação",
+        "Observação",
+    ]
+
+    ws.append(headers)
+
+    header_fill = PatternFill(
+        start_color="00A04E",
+        end_color="00A04E",
+        fill_type="solid",
+    )
+
+    bold_white = Font(
+        bold=True,
+        color="FFFFFF",
+    )
+
+    thin = Side(
+        border_style="thin",
+        color="DDDDDD",
+    )
+
+    border = Border(
+        left=thin,
+        right=thin,
+        top=thin,
+        bottom=thin,
+    )
+
+    for col in range(1, len(headers) + 1):
+
+        cell = ws.cell(
+            row=1,
+            column=col,
+        )
+
+        cell.fill = header_fill
+        cell.font = bold_white
+        cell.border = border
+
+        cell.alignment = Alignment(
+            horizontal="center",
+            vertical="center",
+        )
+
+    for item in items:
+
+        qty = ""
+
+        if item.get("quantity") is not None:
+            qty = (
+                f"{item['quantity']:g} "
+                f"{item.get('quantity_unit', '')}"
+            )
+
+        row = [
+            item.get("unit", ""),
+            item.get("sc", ""),
+            item.get("product", ""),
+            item.get("product_abbr", ""),
+            item.get("batch", ""),
+            qty,
+            item.get("material_status", ""),
+            item.get("situation", ""),
+            item.get("observation", ""),
+        ]
+
+        ws.append(row)
+
+    widths = [12, 8, 20, 10, 16, 14, 16, 16, 30]
+
+    for i, width in enumerate(widths, 1):
+        ws.column_dimensions[
+            openpyxl.utils.get_column_letter(i)
+        ].width = width
+
+    buffer = io.BytesIO()
+
+    wb.save(buffer)
+
+    buffer.seek(0)
+
+    filename = f"bayer_planilha_{date}.xlsx"
+
+    return StreamingResponse(
+        buffer,
+        media_type=(
+            "application/"
+            "vnd.openxmlformats-officedocument."
+            "spreadsheetml.sheet"
+        ),
+        headers={
+            "Content-Disposition":
+            f'attachment; filename="{filename}"'
+        },
+    )
+
+
+# =========================================================
+# INCLUDE ROUTER
+# =========================================================
+
 app.include_router(api_router)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-logging.basicConfig(level=logging.INFO)

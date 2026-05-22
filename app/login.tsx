@@ -1,10 +1,9 @@
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -12,393 +11,624 @@ import {
   Switch,
   Text,
   TextInput,
+  TextInputProps,
   TouchableOpacity,
   View,
 } from 'react-native';
+
+import { Ionicons } from '@expo/vector-icons';
+import { Link, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { useAuth } from '../src/auth';
-import BayerLogo from '../src/BayerLogo';
+import { BAYER_LOGO_URL, useTheme } from '../src/theme';
+
+const REMEMBER_KEY = 'bayer_remember';
+const REMEMBER_EMAIL_KEY = 'bayer_remember_email';
+
+type AuthMode = 'login' | 'register';
 
 export default function Login() {
   const { login, register } = useAuth();
+
+  const { colors, mode } = useTheme();
+
   const router = useRouter();
-  const [tab, setTab] = useState<'login' | 'register'>('login');
+
+  const [authMode, setAuthMode] = useState<AuthMode>('login');
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
   const [name, setName] = useState('');
+
   const [loading, setLoading] = useState(false);
+
   const [showPwd, setShowPwd] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const emailRef = useRef<TextInput>(null);
-  const pwdRef = useRef<TextInput>(null);
-  const nameRef = useRef<TextInput>(null);
 
-  const clearErr = (f: string) => setErrors(p => { const n = { ...p }; delete n[f]; return n; });
+  const [remember, setRemember] = useState(true);
 
-  const validate = () => {
-    const e: Record<string, string> = {};
-    if (!email.trim()) e.email = 'E-mail obrigatorio';
-    else if (!email.includes('@')) e.email = 'E-mail invalido';
-    if (!password) e.password = 'Senha obrigatoria';
-    else if (password.length < 4) e.password = 'Minimo 4 caracteres';
-    if (tab === 'register' && !name.trim()) e.name = 'Nome obrigatorio';
-    setErrors(e);
-    return Object.keys(e).length === 0;
+  useEffect(() => {
+    loadRememberData();
+  }, []);
+
+  const loadRememberData = async () => {
+    try {
+      const rememberValue = await AsyncStorage.getItem(REMEMBER_KEY);
+
+      const savedEmail = await AsyncStorage.getItem(REMEMBER_EMAIL_KEY);
+
+      const shouldRemember = rememberValue !== '0';
+
+      setRemember(shouldRemember);
+
+      if (shouldRemember && savedEmail) {
+        setEmail(savedEmail);
+      }
+    } catch (err) {
+      console.log(err);
+    }
   };
 
   const submit = async () => {
-    if (loading || !validate()) return;
+    if (!email || !password) {
+      Alert.alert('Atenção', 'Preencha e-mail e senha.');
+
+      return;
+    }
+
+    if (authMode === 'register' && !name.trim()) {
+      Alert.alert('Atenção', 'Informe seu nome.');
+
+      return;
+    }
+
     setLoading(true);
+
     try {
-      if (tab === 'login') await login(email.trim().toLowerCase(), password, rememberMe);
-      else await register(email.trim().toLowerCase(), password, name.trim());
-      router.replace('/(tabs)');
-    } catch (err: unknown) {
-      let msg = 'Falha ao autenticar';
-      if (typeof err === 'object' && err !== null) {
-        const e = err as any;
-        const d = e?.response?.data?.detail;
-        if (typeof d === 'string') msg = d;
-        else if (Array.isArray(d)) msg = d.map((x: any) => x?.msg || JSON.stringify(x)).join(' ');
-        else if (e.message) msg = e.message;
+      const cleanEmail = email.trim().toLowerCase();
+
+      if (authMode === 'login') {
+        await login(cleanEmail, password);
+      } else {
+        await register(cleanEmail, password, name.trim());
       }
+
+      await AsyncStorage.setItem(REMEMBER_KEY, remember ? '1' : '0');
+
+      if (remember) {
+        await AsyncStorage.setItem(REMEMBER_EMAIL_KEY, cleanEmail);
+      } else {
+        await AsyncStorage.removeItem(REMEMBER_EMAIL_KEY);
+      }
+
+      router.replace('/(tabs)');
+    } catch (e: any) {
+      console.log(e);
+
+      const detail = e?.response?.data?.detail;
+
+      const msg =
+        typeof detail === 'string'
+          ? detail
+          : Array.isArray(detail)
+            ? detail.map((d: any) => d?.msg || JSON.stringify(d)).join(' ')
+            : e?.message?.includes('Network')
+              ? 'Sem conexão com o servidor.'
+              : 'Falha ao autenticar';
+
       Alert.alert('Erro', msg);
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <View style={S.root}>
-      <LinearGradient
-        colors={['#12C2C2', '#0A9396', '#006070', '#003344']}
-        locations={[0, 0.3, 0.65, 1]}
-        start={{ x: 0.2, y: 0 }}
-        end={{ x: 0.8, y: 1 }}
-        style={S.gradient}
-      />
-      <SafeAreaView style={S.safe} edges={['top', 'bottom']}>
-        <KeyboardAvoidingView style={S.kav} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView
-            contentContainerStyle={S.scroll}
-            keyboardShouldPersistTaps={Platform.OS === 'web' ? 'always' : 'handled'}
-            showsVerticalScrollIndicator={false}
+    <SafeAreaView
+      style={[
+        styles.safe,
+        {
+          backgroundColor: colors.background,
+        },
+      ]}
+      edges={['top', 'bottom']}
+    >
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header */}
+          <View style={styles.brandRow}>
+            <View
+              style={[
+                styles.logoBg,
+                {
+                  backgroundColor: '#FFFFFF',
+                  borderColor: colors.border,
+                },
+              ]}
+            >
+              <Image
+                source={{
+                  uri: BAYER_LOGO_URL,
+                }}
+                style={styles.logoImg}
+                resizeMode="contain"
+              />
+            </View>
+
+            <View style={{ flex: 1 }}>
+              <Text
+                style={[
+                  styles.brand,
+                  {
+                    color: colors.textPrimary,
+                  },
+                ]}
+              >
+                Formulação
+              </Text>
+
+              <Text
+                style={[
+                  styles.brandSub,
+                  {
+                    color: colors.textSecondary,
+                  },
+                ]}
+              >
+                Bayer · Controle Operacional
+              </Text>
+            </View>
+          </View>
+
+          {/* Card */}
+          <View
+            style={[
+              styles.heroCard,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
           >
-            <View style={S.logoSection}>
-              <View style={S.logoRing}>
-                <View style={S.logoInnerRing}>
-                  <View style={S.logoBg}>
-                    <BayerLogo size={66} />
-                  </View>
-                </View>
+            <View style={styles.heroHeader}>
+              <View
+                style={[
+                  styles.heroBadge,
+                  {
+                    backgroundColor: colors.primary + '22',
+                  },
+                ]}
+              >
+                <Ionicons name="flask-outline" size={14} color={colors.primary} />
+
+                <Text
+                  style={{
+                    color: colors.primary,
+                    fontSize: 11,
+                    fontWeight: '700',
+                  }}
+                >
+                  PRODUÇÃO INDUSTRIAL
+                </Text>
               </View>
-              <Text style={S.appTitle}>Formulação</Text>
-              <Text style={S.appSubtitle}>Sistema de Controle Industrial</Text>
             </View>
 
-            <View style={S.tabRow}>
+            <Text
+              style={[
+                styles.heroTitle,
+                {
+                  color: colors.textPrimary,
+                },
+              ]}
+            >
+              {authMode === 'login' ? 'Bem-vindo de volta' : 'Criar nova conta'}
+            </Text>
+
+            <Text
+              style={[
+                styles.heroSub,
+                {
+                  color: colors.textSecondary,
+                },
+              ]}
+            >
+              {authMode === 'login'
+                ? 'Acesse sua planilha operacional.'
+                : 'Cadastre-se para colaborar com o turno.'}
+            </Text>
+
+            {/* Tabs */}
+            <View
+              style={[
+                styles.tabs,
+                {
+                  backgroundColor: colors.surfaceElevated,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
               <TouchableOpacity
-                onPress={() => { setTab('login'); setErrors({}); }}
-                style={tab === 'login' ? [S.tabBtn, S.tabBtnActive] : S.tabBtn}
-                activeOpacity={0.8}
+                onPress={() => setAuthMode('login')}
+                style={[
+                  styles.tab,
+                  authMode === 'login' && {
+                    backgroundColor: colors.primary,
+                  },
+                ]}
               >
-                <Text style={tab === 'login' ? [S.tabTxt, S.tabTxtActive] : S.tabTxt}>Entrar</Text>
+                <Text
+                  style={{
+                    color: authMode === 'login' ? '#fff' : colors.textSecondary,
+                    fontWeight: '700',
+                  }}
+                >
+                  Entrar
+                </Text>
               </TouchableOpacity>
+
               <TouchableOpacity
-                onPress={() => { setTab('register'); setErrors({}); }}
-                style={tab === 'register' ? [S.tabBtn, S.tabBtnActive] : S.tabBtn}
-                activeOpacity={0.8}
+                onPress={() => setAuthMode('register')}
+                style={[
+                  styles.tab,
+                  authMode === 'register' && {
+                    backgroundColor: colors.primary,
+                  },
+                ]}
               >
-                <Text style={tab === 'register' ? [S.tabTxt, S.tabTxtActive] : S.tabTxt}>Criar conta</Text>
+                <Text
+                  style={{
+                    color: authMode === 'register' ? '#fff' : colors.textSecondary,
+                    fontWeight: '700',
+                  }}
+                >
+                  Criar conta
+                </Text>
               </TouchableOpacity>
             </View>
 
-            <View style={S.form}>
-              {tab === 'register' && (
-                <View>
-                  <View style={errors.name ? [S.field, S.fieldError] : S.field}>
-                    <Ionicons name="person-outline" size={18} color="rgba(255,255,255,0.65)" />
-                    <TextInput
-                      ref={nameRef}
-                      value={name}
-                      onChangeText={v => { setName(v); clearErr('name'); }}
-                      placeholder="Nome completo"
-                      placeholderTextColor="rgba(255,255,255,0.45)"
-                      style={S.fieldInput}
-                      returnKeyType="next"
-                      onSubmitEditing={() => emailRef.current?.focus()}
-                    />
-                  </View>
-                  {errors.name ? <Text style={S.errTxt}>{errors.name}</Text> : null}
-                </View>
-              )}
+            {/* Nome */}
+            {authMode === 'register' && (
+              <Field label="Nome" colors={colors}>
+                <Input
+                  icon="person-outline"
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="Seu nome"
+                  colors={colors}
+                />
+              </Field>
+            )}
 
-              <View>
-                <View style={errors.email ? [S.field, S.fieldError] : S.field}>
-                  <Ionicons name="mail-outline" size={18} color="rgba(255,255,255,0.65)" />
-                  <TextInput
-                    ref={emailRef}
-                    value={email}
-                    onChangeText={v => { setEmail(v); clearErr('email'); }}
-                    placeholder="E-mail"
-                    placeholderTextColor="rgba(255,255,255,0.45)"
-                    autoCapitalize="none"
-                    keyboardType="email-address"
-                    autoComplete="email"
-                    style={S.fieldInput}
-                    returnKeyType="next"
-                    onSubmitEditing={() => pwdRef.current?.focus()}
-                  />
-                </View>
-                {errors.email ? <Text style={S.errTxt}>{errors.email}</Text> : null}
+            {/* Email */}
+            <Field label="E-mail" colors={colors}>
+              <Input
+                icon="mail-outline"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="seu@bayer.com"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                colors={colors}
+              />
+            </Field>
+
+            {/* Senha */}
+            <Field label="Senha" colors={colors}>
+              <Input
+                icon="lock-closed-outline"
+                value={password}
+                onChangeText={setPassword}
+                placeholder="••••••••"
+                secureTextEntry={!showPwd}
+                colors={colors}
+                rightIcon={showPwd ? 'eye-off-outline' : 'eye-outline'}
+                onRightPress={() => setShowPwd(s => !s)}
+              />
+            </Field>
+
+            {/* Remember */}
+            <View style={styles.rowBetween}>
+              <View style={styles.rememberRow}>
+                <Switch
+                  value={remember}
+                  onValueChange={setRemember}
+                  trackColor={{
+                    false: colors.border,
+                    true: colors.primary,
+                  }}
+                  thumbColor="#fff"
+                />
+
+                <Text
+                  style={{
+                    color: colors.textSecondary,
+                    fontSize: 13,
+                  }}
+                >
+                  Lembrar de mim
+                </Text>
               </View>
 
-              <View>
-                <View style={errors.password ? [S.field, S.fieldError] : S.field}>
-                  <Ionicons name="lock-closed-outline" size={18} color="rgba(255,255,255,0.65)" />
-                  <TextInput
-                    ref={pwdRef}
-                    value={password}
-                    onChangeText={v => { setPassword(v); clearErr('password'); }}
-                    placeholder="Senha"
-                    placeholderTextColor="rgba(255,255,255,0.45)"
-                    secureTextEntry={!showPwd}
-                    style={S.fieldInput}
-                    returnKeyType="done"
-                    onSubmitEditing={submit}
-                  />
-                  <TouchableOpacity onPress={() => setShowPwd(s => !s)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                    <Ionicons name={showPwd ? 'eye-off-outline' : 'eye-outline'} size={18} color="rgba(255,255,255,0.65)" />
+              {authMode === 'login' && (
+                <Link href="/forgot-password" asChild>
+                  <TouchableOpacity>
+                    <Text
+                      style={{
+                        color: colors.secondary,
+                        fontWeight: '600',
+                      }}
+                    >
+                      Esqueci a senha
+                    </Text>
                   </TouchableOpacity>
-                </View>
-                {errors.password ? <Text style={S.errTxt}>{errors.password}</Text> : null}
-              </View>
-
-              {tab === 'login' && (
-                <View style={S.remRow}>
-                  <Switch
-                    value={rememberMe}
-                    onValueChange={setRememberMe}
-                    thumbColor={rememberMe ? '#fff' : 'rgba(255,255,255,0.5)'}
-                    trackColor={{ false: 'rgba(0,0,0,0.3)', true: 'rgba(255,255,255,0.35)' }}
-                  />
-                  <TouchableOpacity onPress={() => setRememberMe(r => !r)} style={S.remLabel}>
-                    <Text style={S.remTxt}>Lembrar de mim</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={S.forgotBtn}
-                    onPress={() => Alert.alert('Recuperacao de Senha', 'Entre em contato com o administrador do sistema.')}
-                  >
-                    <Text style={S.forgotTxt}>Esqueceu?</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-
-              <TouchableOpacity
-                onPress={submit}
-                disabled={loading}
-                style={loading ? [S.submitBtn, S.submitBtnDisabled] : S.submitBtn}
-                activeOpacity={0.88}
-              >
-                {loading
-                  ? <ActivityIndicator color="#0A9396" />
-                  : <Text style={S.submitTxt}>{tab === 'login' ? 'Entrar' : 'Criar conta'}</Text>
-                }
-              </TouchableOpacity>
-
-              {tab === 'login' && (
-                <View style={S.hintRow}>
-                  <Ionicons name="information-circle-outline" size={14} color="rgba(255,255,255,0.5)" />
-                  <Text style={S.hintTxt}>Demo: admin@bayer.com / admin123</Text>
-                </View>
+                </Link>
               )}
             </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+
+            {/* Botão */}
+            <TouchableOpacity
+              onPress={submit}
+              disabled={loading}
+              style={[
+                styles.button,
+                {
+                  backgroundColor: colors.primary,
+                  opacity: loading ? 0.7 : 1,
+                },
+              ]}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Ionicons
+                    name={authMode === 'login' ? 'log-in-outline' : 'person-add-outline'}
+                    size={18}
+                    color="#fff"
+                  />
+
+                  <Text style={styles.buttonText}>
+                    {authMode === 'login' ? 'Entrar' : 'Criar conta'}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+type FieldProps = {
+  label: string;
+  children: React.ReactNode;
+  colors: any;
+};
+
+function Field({ label, children, colors }: FieldProps) {
+  return (
+    <View style={{ marginTop: 12 }}>
+      <Text
+        style={[
+          styles.label,
+          {
+            color: colors.textSecondary,
+          },
+        ]}
+      >
+        {label}
+      </Text>
+
+      {children}
     </View>
   );
 }
 
-const S = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: '#003344',
-  },
-  gradient: {
-    ...StyleSheet.absoluteFillObject,
-  },
+type InputProps = TextInputProps & {
+  icon: keyof typeof Ionicons.glyphMap;
+  rightIcon?: keyof typeof Ionicons.glyphMap;
+  onRightPress?: () => void;
+  colors: any;
+};
+
+function Input({ icon, rightIcon, onRightPress, colors, ...props }: InputProps) {
+  const [focused, setFocused] = useState(false);
+
+  return (
+    <View
+      style={[
+        styles.input,
+        {
+          backgroundColor: colors.surfaceElevated,
+          borderColor: focused ? colors.primary : colors.border,
+        },
+      ]}
+    >
+      <Ionicons name={icon} size={18} color={colors.textTertiary} />
+
+      <TextInput
+        {...props}
+        placeholderTextColor={colors.textTertiary}
+        onFocus={e => {
+          setFocused(true);
+
+          props.onFocus?.(e);
+        }}
+        onBlur={e => {
+          setFocused(false);
+
+          props.onBlur?.(e);
+        }}
+        style={[
+          styles.inputText,
+          {
+            color: colors.textPrimary,
+          },
+        ]}
+      />
+
+      {rightIcon && (
+        <TouchableOpacity onPress={onRightPress} hitSlop={10}>
+          <Ionicons name={rightIcon} size={18} color={colors.textTertiary} />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
   safe: {
     flex: 1,
   },
-  kav: {
-    flex: 1,
-  },
+
   scroll: {
-    flexGrow: 1,
-    paddingHorizontal: 28,
-    paddingBottom: 48,
+    padding: 20,
+    paddingBottom: 40,
   },
-  logoSection: {
+
+  brandRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 28,
-    paddingBottom: 36,
     gap: 14,
-  },
-  logoRing: {
-    width: 128,
-    height: 128,
-    borderRadius: 64,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.25)',
-  },
-  logoInnerRing: {
-    width: 108,
-    height: 108,
-    borderRadius: 54,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.35)',
-  },
-  logoBg: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    elevation: 16,
-  },
-  appTitle: {
-    fontSize: 38,
-    fontWeight: '800',
-    color: '#ffffff',
-    letterSpacing: -0.8,
-  },
-  appSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
-    textAlign: 'center',
-    letterSpacing: 0.2,
-  },
-  tabRow: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(0,0,0,0.25)',
-    borderRadius: 16,
-    padding: 5,
     marginBottom: 20,
-    gap: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    marginTop: 8,
   },
-  tabBtn: {
-    flex: 1,
-    paddingVertical: 13,
-    borderRadius: 12,
+
+  logoBg: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
     alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    padding: 6,
   },
-  tabBtnActive: {
-    backgroundColor: 'rgba(255,255,255,0.18)',
+
+  logoImg: {
+    width: '100%',
+    height: '100%',
   },
-  tabTxt: {
-    fontWeight: '600',
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.55)',
+
+  brand: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.5,
   },
-  tabTxtActive: {
-    color: '#ffffff',
-    fontWeight: '700',
+
+  brandSub: {
+    fontSize: 12,
+    marginTop: 2,
+    fontWeight: '500',
   },
-  form: {
-    gap: 12,
+
+  heroCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 20,
   },
-  field: {
+
+  heroHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    height: 56,
-    paddingHorizontal: 18,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.28)',
+    marginBottom: 12,
+  },
+
+  heroBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+
+  heroTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    marginBottom: 6,
+  },
+
+  heroSub: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+
+  tabs: {
+    flexDirection: 'row',
+    borderRadius: 12,
+    padding: 4,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    marginBottom: 4,
   },
-  fieldError: {
-    borderColor: 'rgba(255,100,100,0.7)',
-  },
-  fieldInput: {
+
+  tab: {
     flex: 1,
-    color: '#ffffff',
-    fontSize: 15,
+    paddingVertical: 9,
+    borderRadius: 9,
+    alignItems: 'center',
   },
-  errTxt: {
-    fontSize: 12,
-    color: 'rgba(255,160,160,0.9)',
-    marginTop: 5,
-    marginLeft: 6,
+
+  label: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 6,
+    textTransform: 'uppercase',
   },
-  remRow: {
+
+  input: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginVertical: 4,
+    paddingHorizontal: 14,
+    height: 50,
+    borderRadius: 12,
+    borderWidth: 1.5,
   },
-  remLabel: {
+
+  inputText: {
     flex: 1,
+    fontSize: 15,
+    paddingVertical: 0,
   },
-  remTxt: {
-    color: 'rgba(255,255,255,0.75)',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  forgotBtn: {
-    paddingVertical: 4,
-  },
-  forgotTxt: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  submitBtn: {
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: '#ffffff',
+
+  rowBetween: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 6,
+    justifyContent: 'space-between',
+    marginTop: 14,
+    marginBottom: 4,
   },
-  submitBtnDisabled: {
-    opacity: 0.7,
+
+  rememberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-  submitTxt: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#0A9396',
-    letterSpacing: 0.3,
-  },
-  hintRow: {
+
+  button: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    marginTop: 8,
+    gap: 8,
+    height: 52,
+    borderRadius: 12,
+    marginTop: 14,
   },
-  hintTxt: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 12,
-    textAlign: 'center',
+
+  buttonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
   },
 });

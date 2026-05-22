@@ -1,38 +1,37 @@
-// ---------- Constants ----------
 export const UNITS = ['Everest', 'Fênix'] as const;
-export const SCS = ['SC1', 'SC2', 'SC3', 'SC4', 'SC5', 'SC6'] as const;
+
+export const SCS = ['SC1', 'SC2', 'SC3', 'SC4', 'SC5', 'SC6', 'SC7'] as const;
+
 export const MATERIAL_STATUS = ['Disponível', 'Baixo', 'Indisponível'] as const;
-export const SITUATIONS = ['Preparado', 'A preparar', 'Em fábrica'] as const;
 
-// ---------- Derived Types ----------
-export type Unit = (typeof UNITS)[number];
-export type SC = (typeof SCS)[number];
-export type MaterialStatus = (typeof MATERIAL_STATUS)[number];
-export type Situation = (typeof SITUATIONS)[number];
+export const SITUATIONS = ['Recebido', 'A preparar', 'Preparado', 'Em fábrica'] as const;
 
-// ---------- Model ----------
+/**
+ * Registro principal de produção
+ */
 export type ProductionItem = {
   id: string;
-  date: string; // YYYY-MM-DD
-  unit: Unit;
-  sc: SC;
+  date: string;
+  unit: string;
+  sc: string;
   product: string;
   product_abbr: string;
   batch: string;
   quantity?: number | null;
   quantity_unit: string;
-  material_status: MaterialStatus;
-  situation: Situation;
+  material_status: string;
+  situation: string;
   observation: string;
   created_at: string;
   updated_at: string;
 };
 
-// ---------- Helpers ----------
+/**
+ * Retorna data atual em formato YYYY-MM-DD
+ */
 export const todayISO = (): string => {
   const d = new Date();
 
-  // evita problemas de timezone
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
@@ -40,23 +39,38 @@ export const todayISO = (): string => {
   return `${yyyy}-${mm}-${dd}`;
 };
 
+/**
+ * Formata data ISO (YYYY-MM-DD) para label PT-BR
+ */
 export const formatDateLabel = (iso: string): string => {
-  if (!iso) return '';
+  if (!iso || typeof iso !== 'string') return '';
 
   const parts = iso.split('-');
-  if (parts.length !== 3) return iso;
+  if (parts.length !== 3) return '';
 
   const [y, m, d] = parts.map(Number);
 
-  if (!y || !m || !d) return iso;
+  if (!y || !m || !d) return '';
 
   const dt = new Date(y, m - 1, d);
 
-  if (isNaN(dt.getTime())) return iso;
+  if (Number.isNaN(dt.getTime())) return '';
 
   return dt.toLocaleDateString('pt-BR', {
     weekday: 'short',
     day: '2-digit',
     month: 'short',
   });
+};
+
+/**
+ * Formata quantidade de sacos
+ */
+export const formatBags = (q?: number | null): string => {
+  if (q === null || q === undefined) return '';
+
+  const n = Number(q);
+  if (!Number.isFinite(n)) return '';
+
+  return `${n} bag${n === 1 ? '' : 's'}`;
 };
