@@ -1,410 +1,558 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, useAuth } from '../../src/auth';
 import BayerLogo from '../../src/BayerLogo';
 import { useTheme } from '../../src/theme';
-import { ProductionItem, todayISO } from '../../src/types';
-
-const NAV_CARDS = [
-  { id: 'planilha', title: 'Planilha de Produção', subtitle: 'Controle de itens, lotes e status de material', icon: 'grid', route: '/(tabs)/planilha', accent: true },
-  { id: 'report', title: 'Relatório de Turno', subtitle: 'Resumo formatado com status de todos os lotes', icon: 'document-text', route: '/(tabs)/report', accent: false },
-];
-
-const QUICK_CARDS = [
-  { id: 'guia', title: 'Guia de Formulação', subtitle: 'Produtos e procedimentos', icon: 'book', route: '/(tabs)/guide' },
-  { id: 'config', title: 'Configurações', subtitle: 'Conta e aparencia', icon: 'person', route: '/(tabs)/settings' },
-];
+import { ProductionItem, formatDateLabel, todayISO } from '../../src/types';
 
 export default function HomeScreen() {
   const { colors, mode, toggle } = useTheme();
-  const { user, isDemo } = useAuth();
+  const { user } = useAuth();
   const [items, setItems] = useState<ProductionItem[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const fetchItems = useCallback(async () => {
-    if (isDemo) return;
+    setLoading(true);
     try {
       const r = await api.get('/items', { params: { date: todayISO() } });
       setItems(Array.isArray(r.data) ? r.data : []);
-    } catch {}
-  }, [isDemo]);
+    } catch (err) {
+      console.log('Error fetching items:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  useFocusEffect(useCallback(() => { fetchItems(); }, [fetchItems]));
+  useFocusEffect(useCallback(() => {
+    fetchItems();
+  }, [fetchItems]));
 
-  const stats = useMemo(() => ({
-    total: items.length,
-    disp: items.filter(i => i.material_status === 'Disponivel').length,
-    indisp: items.filter(i => i.material_status === 'Indisponivel').length,
-  }), [items]);
+  const stats = useMemo(() => {
+    const situations = ['Recebido', 'A preparar', 'Preparado', 'Em fábrica'];
+    return {
+      total: items.length,
+      recebido: items.filter(i => i.situation === 'Recebido').length,
+      aPreparar: items.filter(i => i.situation === 'A preparar').length,
+      preparado: items.filter(i => i.situation === 'Preparado').length,
+      fabrica: items.filter(i => i.situation === 'Em fábrica').length,
+    };
+  }, [items]);
 
   const greeting = () => {
     const h = new Date().getHours();
     return h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
   };
 
-  const today = new Date().toLocaleDateString('pt-BR', {
-    weekday: 'long', day: 'numeric', month: 'long',
-  });
-
-  const firstName = user?.name || 'Operador';
+  const dateLabel = formatDateLabel(todayISO());
 
   return (
-    <SafeAreaView style={[S.safe, { backgroundColor: colors.background }]} edges={['top']}>
-
-      <View style={[S.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <View style={S.headerRow}>
-          <View style={S.headerLeft}>
-            <View style={[S.bayerCircle, { backgroundColor: '#fff', shadowColor: colors.primary }]}>
-              <BayerLogo size={20} />
-            </View>
-            <View style={S.headerInfo}>
-              <Text style={[S.greetingTxt, { color: colors.textPrimary }]}>{greeting()}, {firstName}</Text>
-              <Text style={[S.dateTxt, { color: colors.textSecondary }]} numberOfLines={1}>{today}</Text>
-            </View>
+    <SafeAreaView
+      style={[styles.safe, { backgroundColor: colors.background }]}
+      edges={['top']}
+    >
+      {/* Header Card */}
+      <View
+        style={[
+          styles.headerCard,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        <View style={styles.headerRow}>
+          <View
+            style={[
+              styles.logoBg,
+              {
+                backgroundColor: '#FFFFFF',
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <BayerLogo size={28} />
           </View>
-          <View style={[S.modeToggle, { backgroundColor: colors.background, borderColor: colors.border }]}>
-            <TouchableOpacity
-              onPress={mode === 'dark' ? undefined : toggle}
-              style={mode === 'dark' ? [S.modeBtn, S.modeBtnActive, { backgroundColor: colors.surface }] : S.modeBtn}
+
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.greeting, { color: colors.textPrimary }]}>
+              {greeting()}, {user?.name || 'Operador'}
+            </Text>
+            <Text style={[styles.appTitle, { color: colors.textSecondary }]}>
+              Formulação · Bayer
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            onPress={toggle}
+            style={[
+              styles.themeBtn,
+              {
+                backgroundColor: colors.surfaceElevated,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Ionicons
+              name={mode === 'dark' ? 'sunny-outline' : 'moon-outline'}
+              size={18}
+              color={colors.primary}
+            />
+          </TouchableOpacity>
+        </View>
+
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          {dateLabel}
+        </Text>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Shift Summary */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>
+            RESUMO DO TURNO
+          </Text>
+
+          <View
+            style={[
+              styles.summaryCard,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.summaryIcon,
+                {
+                  backgroundColor: colors.primary + '22',
+                },
+              ]}
             >
-              <Ionicons name="moon" size={15} color={mode === 'dark' ? colors.primary : colors.textTertiary} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={mode === 'light' ? undefined : toggle}
-              style={mode === 'light' ? [S.modeBtn, S.modeBtnActive, { backgroundColor: colors.surface }] : S.modeBtn}
-            >
-              <Ionicons name="sunny" size={15} color={mode === 'light' ? colors.primary : colors.textTertiary} />
-            </TouchableOpacity>
+              <Ionicons
+                name="cube-outline"
+                size={32}
+                color={colors.primary}
+              />
+            </View>
+
+            <View>
+              <Text style={[styles.summaryNum, { color: colors.textPrimary }]}>
+                {stats.total}
+              </Text>
+              <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>
+                Materiais hoje
+              </Text>
+            </View>
           </View>
         </View>
 
-        <Text style={[S.appTitle, { color: colors.textPrimary }]}>Fito Formulação</Text>
+        {/* Production Status */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>
+            SITUAÇÃO DA PRODUÇÃO
+          </Text>
 
-        {!isDemo && items.length > 0 && (
-          <View style={[S.statsBar, { backgroundColor: colors.background, borderColor: colors.border }]}>
-            <View style={S.statItem}>
-              <Text style={[S.statNum, { color: colors.textPrimary }]}>{stats.total}</Text>
-              <Text style={[S.statLbl, { color: colors.textSecondary }]}>Total hoje</Text>
-            </View>
-            <View style={[S.statDiv, { backgroundColor: colors.border }]} />
-            <View style={S.statItem}>
-              <Text style={[S.statNum, { color: colors.success }]}>{stats.disp}</Text>
-              <Text style={[S.statLbl, { color: colors.textSecondary }]}>Disponiveis</Text>
-            </View>
-            <View style={[S.statDiv, { backgroundColor: colors.border }]} />
-            <View style={S.statItem}>
-              <Text style={[S.statNum, { color: colors.danger }]}>{stats.indisp}</Text>
-              <Text style={[S.statLbl, { color: colors.textSecondary }]}>Indisponiveis</Text>
-            </View>
+          <View style={styles.statusGrid}>
+            <StatusCard
+              icon="download-outline"
+              label="Recebido"
+              value={stats.recebido}
+              color="#3B82F6"
+              colors={colors}
+            />
+            <StatusCard
+              icon="time-outline"
+              label="A preparar"
+              value={stats.aPreparar}
+              color="#F59E0B"
+              colors={colors}
+            />
+            <StatusCard
+              icon="checkmark-circle-outline"
+              label="Preparado"
+              value={stats.preparado}
+              color="#10B981"
+              colors={colors}
+            />
+            <StatusCard
+              icon="sync-circle-outline"
+              label="Em fábrica"
+              value={stats.fabrica}
+              color="#8B5CF6"
+              colors={colors}
+            />
           </View>
-        )}
-      </View>
+        </View>
 
-      <ScrollView style={S.scroll} contentContainerStyle={S.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* By Unit */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>
+            POR UNIDADE
+          </Text>
 
-        {isDemo && (
-          <View style={[S.demoBanner, { backgroundColor: colors.warningBg, borderColor: colors.warning + '44' }]}>
-            <Ionicons name="warning-outline" size={15} color={colors.warning} />
-            <Text style={[S.demoBannerTxt, { color: colors.warning }]}>Modo demo ativo. Configure o backend para dados reais.</Text>
-          </View>
-        )}
-
-        <Text style={[S.sectionLabel, { color: colors.textTertiary }]}>ACESSO RAPIDO</Text>
-
-        {NAV_CARDS.map(card => card.accent ? (
-          <TouchableOpacity key={card.id} onPress={() => router.navigate(card.route as any)} activeOpacity={0.82} style={S.accentWrap}>
-            <LinearGradient colors={['#0FA4AF', '#007B82', '#005F73']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={S.accentCard}>
-              <View style={S.accentIconBg}>
-                <Ionicons name={card.icon as any} size={26} color="#fff" />
-              </View>
-              <View style={S.cardBody}>
-                <Text style={S.accentTitle}>{card.title}</Text>
-                <Text style={S.accentSub}>{card.subtitle}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.55)" />
-            </LinearGradient>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            key={card.id}
-            onPress={() => router.navigate(card.route as any)}
-            activeOpacity={0.82}
-            style={[S.darkCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-          >
-            <View style={[S.darkIconBg, { backgroundColor: colors.primary + '18' }]}>
-              <Ionicons name={card.icon as any} size={26} color={colors.primary} />
-            </View>
-            <View style={S.cardBody}>
-              <Text style={[S.darkTitle, { color: colors.textPrimary }]}>{card.title}</Text>
-              <Text style={[S.darkSub, { color: colors.textSecondary }]}>{card.subtitle}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-          </TouchableOpacity>
-        ))}
-
-        <Text style={[S.sectionLabel, { color: colors.textTertiary }]}>FERRAMENTAS</Text>
-
-        <View style={S.smallRow}>
-          {QUICK_CARDS.map(card => (
-            <TouchableOpacity
-              key={card.id}
-              onPress={() => router.navigate(card.route as any)}
-              activeOpacity={0.82}
-              style={[S.smallCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          {[...new Set(items.map(i => i.unit))].map(unit => (
+            <View
+              key={unit}
+              style={[
+                styles.unitCard,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                },
+              ]}
             >
-              <View style={[S.smallIconBg, { backgroundColor: colors.primary + '15' }]}>
-                <Ionicons name={card.icon as any} size={22} color={colors.primary} />
-              </View>
-              <Text style={[S.smallTitle, { color: colors.textPrimary }]}>{card.title}</Text>
-              <Text style={[S.smallSub, { color: colors.textSecondary }]}>{card.subtitle}</Text>
-              <View style={S.smallArrowWrap}>
-                <Ionicons name="chevron-forward" size={15} color={colors.textTertiary} />
-              </View>
-            </TouchableOpacity>
+              <Ionicons name="cube-outline" size={24} color={colors.primary} />
+              <Text style={[styles.unitName, { color: colors.textPrimary }]}>
+                {unit}
+              </Text>
+              <Text style={[styles.unitCount, { color: colors.textSecondary }]}>
+                {items.filter(i => i.unit === unit).length}
+              </Text>
+            </View>
           ))}
         </View>
 
-        <Text style={[S.version, { color: colors.textTertiary }]}>Bayer Fito Formulação · v2.0</Text>
+        {/* Quick Actions */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>
+            AÇÕES RÁPIDAS
+          </Text>
+
+          <TouchableOpacity
+            onPress={() => router.navigate('/(tabs)/planilha' as any)}
+            style={[
+              styles.actionCard,
+              {
+                backgroundColor: colors.primary,
+              },
+            ]}
+          >
+            <Ionicons name="grid-outline" size={20} color="#fff" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.actionTitle}>Planilha Operacional</Text>
+              <Text style={styles.actionSub}>Controle completo de materiais</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.6)" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => router.navigate('/(tabs)/report' as any)}
+            style={[
+              styles.actionCard,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                borderWidth: 1,
+              },
+            ]}
+          >
+            <Ionicons
+              name="document-text-outline"
+              size={20}
+              color={colors.primary}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.actionTitle, { color: colors.textPrimary }]}>
+                Relatórios
+              </Text>
+              <Text style={[styles.actionSub, { color: colors.textSecondary }]}>
+                Gerar e exportar relatórios
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={colors.textTertiary}
+            />
+          </TouchableOpacity>
+        </View>
+
+        {/* Last 7 Days */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>
+            ÚLTIMOS 7 DIAS
+          </Text>
+
+          <View
+            style={[
+              styles.chartCard,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <View style={styles.chartPlaceholder}>
+              <Ionicons
+                name="stats-chart-outline"
+                size={48}
+                color={colors.textTertiary}
+              />
+              <Text
+                style={[
+                  styles.chartText,
+                  { color: colors.textSecondary },
+                ]}
+              >
+                Dados de resumo dos últimos 7 dias
+              </Text>
+            </View>
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const S = StyleSheet.create({
+function StatusCard({
+  icon,
+  label,
+  value,
+  color,
+  colors,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  value: number;
+  color: string;
+  colors: any;
+}) {
+  return (
+    <View
+      style={[
+        styles.statusCard,
+        {
+          backgroundColor: color + '15',
+          borderColor: color + '30',
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.statusIconBg,
+          {
+            backgroundColor: color + '20',
+          },
+        ]}
+      >
+        <Ionicons name={icon} size={20} color={color} />
+      </View>
+
+      <Text style={[styles.statusValue, { color }]}>
+        {value}
+      </Text>
+
+      <Text style={[styles.statusLabel, { color: colors.textSecondary }]}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
   safe: {
     flex: 1,
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 18,
-    borderBottomWidth: 1,
-    gap: 4,
+
+  headerCard: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 10,
   },
+
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 2,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  bayerCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.18,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  headerInfo: {
-    flex: 1,
-    gap: 1,
-  },
-  greetingTxt: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  dateTxt: {
-    fontSize: 11,
-    textTransform: 'capitalize',
-  },
-  modeToggle: {
-    flexDirection: 'row',
-    borderRadius: 10,
-    padding: 3,
-    borderWidth: 1,
-    gap: 2,
-  },
-  modeBtn: {
-    width: 30,
-    height: 28,
-    borderRadius: 7,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modeBtnActive: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  appTitle: {
-    fontSize: 32,
-    fontWeight: '800',
-    letterSpacing: -0.8,
-    marginTop: 10,
-  },
-  statsBar: {
-    flexDirection: 'row',
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 6,
-    marginTop: 14,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 2,
-  },
-  statNum: {
-    fontSize: 20,
-    fontWeight: '800',
-  },
-  statLbl: {
-    fontSize: 10,
-    fontWeight: '500',
-  },
-  statDiv: {
-    width: 1,
-    height: 28,
-    alignSelf: 'center',
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 36,
     gap: 12,
   },
-  demoBanner: {
+
+  logoBg: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+
+  greeting: {
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 2,
+  },
+
+  appTitle: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+
+  subtitle: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+
+  themeBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  scrollContent: {
+    paddingHorizontal: 12,
+    paddingBottom: 100,
+    gap: 16,
+  },
+
+  section: {
+    gap: 10,
+  },
+
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    paddingHorizontal: 4,
+  },
+
+  summaryCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    padding: 12,
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
   },
-  demoBannerTxt: {
-    flex: 1,
+
+  summaryIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  summaryNum: {
+    fontSize: 24,
+    fontWeight: '800',
+    marginBottom: 2,
+  },
+
+  summaryLabel: {
     fontSize: 12,
     fontWeight: '500',
-    lineHeight: 17,
   },
-  sectionLabel: {
+
+  statusGrid: {
+    flexDirection: 'row',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+
+  statusCard: {
+    flex: 1,
+    minWidth: '48%',
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    gap: 6,
+  },
+
+  statusIconBg: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  statusValue: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+
+  statusLabel: {
     fontSize: 11,
+    fontWeight: '600',
+  },
+
+  unitCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+
+  unitName: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  unitCount: {
+    fontSize: 13,
     fontWeight: '700',
-    letterSpacing: 1,
-    marginTop: 4,
-    marginBottom: -2,
   },
-  accentWrap: {
-    borderRadius: 22,
-    overflow: 'hidden',
-    shadowColor: '#0A9396',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.28,
-    shadowRadius: 14,
-    elevation: 8,
-  },
-  accentCard: {
+
+  actionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    padding: 22,
-  },
-  accentIconBg: {
-    width: 52,
-    height: 52,
-    borderRadius: 15,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardBody: {
-    flex: 1,
-    gap: 3,
-  },
-  accentTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#ffffff',
-  },
-  accentSub: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.72)',
-    lineHeight: 17,
-  },
-  darkCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    padding: 20,
-    borderRadius: 22,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.07,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  darkIconBg: {
-    width: 52,
-    height: 52,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  darkTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-  },
-  darkSub: {
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: 2,
-  },
-  smallRow: {
-    flexDirection: 'row',
     gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginBottom: 10,
   },
-  smallCard: {
-    flex: 1,
-    borderRadius: 20,
-    padding: 18,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    gap: 8,
-  },
-  smallIconBg: {
-    width: 44,
-    height: 44,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  smallTitle: {
+
+  actionTitle: {
+    color: '#fff',
     fontSize: 14,
     fontWeight: '700',
+    marginBottom: 2,
   },
-  smallSub: {
-    fontSize: 11,
-    lineHeight: 15,
+
+  actionSub: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
   },
-  smallArrowWrap: {
-    alignSelf: 'flex-end',
-    marginTop: 4,
+
+  chartCard: {
+    paddingHorizontal: 16,
+    paddingVertical: 32,
+    borderRadius: 12,
+    borderWidth: 1,
   },
-  version: {
-    fontSize: 11,
+
+  chartPlaceholder: {
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  chartText: {
+    fontSize: 13,
+    fontWeight: '500',
     textAlign: 'center',
-    marginTop: 8,
   },
 });
