@@ -112,15 +112,15 @@ export default function HomeScreen() {
               style={[
                 styles.themeBtn,
                 {
-                  backgroundColor: colors.surfaceElevated,
-                  borderColor: colors.border,
+                  backgroundColor: mode === 'dark' ? '#FFA50033' : '#3B82F633',
+                  borderColor: mode === 'dark' ? '#FFA500' : '#3B82F6',
                 },
               ]}
             >
               <Ionicons
-                name={mode === 'dark' ? 'sunny-outline' : 'moon-outline'}
-                size={16}
-                color={colors.primary}
+                name={mode === 'dark' ? 'sunny' : 'moon'}
+                size={18}
+                color={mode === 'dark' ? '#FFA500' : '#3B82F6'}
               />
             </TouchableOpacity>
           </View>

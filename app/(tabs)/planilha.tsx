@@ -221,8 +221,8 @@ export default function PlanilhaScreen() {
         },
       ]}
     >
-      <View style={styles.cardRow}>
-        <View style={{ flex: 1, gap: 4 }}>
+      <View style={styles.cardTop}>
+        <View style={{ flex: 1 }}>
           <View style={styles.badgeRow}>
             <View
               style={[
@@ -235,62 +235,81 @@ export default function PlanilhaScreen() {
               <Text
                 style={{
                   color: colors.primary,
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: '700',
                 }}
               >
-                {item.unit} • {item.sc}
+                {item.unit}
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.unitBadge,
+                {
+                  backgroundColor: '#8B5CF644',
+                },
+              ]}
+            >
+              <Text
+                style={{
+                  color: '#8B5CF6',
+                  fontSize: 10,
+                  fontWeight: '700',
+                }}
+              >
+                {item.sc}
               </Text>
             </View>
           </View>
-
           <Text style={[styles.productName, { color: colors.textPrimary }]}>
             {item.product_abbr}
           </Text>
-
-          <Text style={[styles.productFull, { color: colors.textSecondary }]}>
-            {item.product}
-          </Text>
-
           <Text style={[styles.batch, { color: colors.textTertiary }]}>
             Lote {item.batch}
             {item.quantity ? ` · ${item.quantity}${item.quantity_unit}` : ''}
           </Text>
         </View>
 
-        <View style={{ alignItems: 'flex-end', justifyContent: 'space-between' }}>
-          <View style={styles.actionButtons}>
-            <TouchableOpacity
-              onPress={() => handleEdit(item)}
-              hitSlop={8}
-              style={[
-                styles.iconButton,
-                {
-                  backgroundColor: colors.primary + '22',
-                },
-              ]}
-            >
-              <Ionicons name="pencil" size={14} color={colors.primary} />
-            </TouchableOpacity>
+        <View style={styles.actionButtons}>
+          <TouchableOpacity
+            onPress={() => handleEdit(item)}
+            hitSlop={8}
+            style={[
+              styles.iconButton,
+              {
+                backgroundColor: colors.primary + '22',
+              },
+            ]}
+          >
+            <Ionicons name="pencil" size={14} color={colors.primary} />
+          </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={() => handleDelete(item.id)}
-              hitSlop={8}
-              style={[
-                styles.iconButton,
-                {
-                  backgroundColor: '#FF4B4B22',
-                },
-              ]}
-            >
-              <Ionicons name="trash" size={14} color="#FF4B4B" />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            onPress={() => handleDelete(item.id)}
+            hitSlop={8}
+            style={[
+              styles.iconButton,
+              {
+                backgroundColor: '#FF4B4B22',
+              },
+            ]}
+          >
+            <Ionicons name="trash" size={14} color="#FF4B4B" />
+          </TouchableOpacity>
+        </View>
+      </View>
 
-          <View style={styles.statusColumn}>
-            <StatusPill label={item.situation} small />
-            <StatusPill label={item.material_status} small />
-          </View>
+      <View
+        style={[
+          styles.cardDivider,
+          { backgroundColor: colors.border },
+        ]}
+      />
+
+      <View style={styles.cardBottom}>
+        <View style={styles.statusColumn}>
+          <StatusPill label={item.situation} small />
+          <StatusPill label={item.material_status} small />
         </View>
       </View>
 
@@ -301,6 +320,7 @@ export default function PlanilhaScreen() {
             {
               backgroundColor: colors.surfaceElevated,
               borderColor: colors.border,
+              marginTop: 8,
             },
           ]}
         >
@@ -328,22 +348,22 @@ export default function PlanilhaScreen() {
           style={[
             styles.header,
             {
-              backgroundColor: colors.surface,
-              borderBottomColor: colors.border,
+              backgroundColor: colors.primary,
+              paddingBottom: 20,
             },
           ]}
         >
-          <View>
-            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
-              Planilha Operacional
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.headerTitle, { color: '#fff' }]}>
+              📋 Planilha Operacional
             </Text>
 
             <TouchableOpacity
               onPress={() => setDatePickerVisible(true)}
               style={styles.dateButton}
             >
-              <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
-                {formatDateLabel(date)} · {filtered.length} {filtered.length === 1 ? 'Material' : 'Materiais'}
+              <Text style={[styles.headerSub, { color: '#ffffffCC' }]}>
+                {formatDateLabel(date)} · {filtered.length} {filtered.length === 1 ? 'material' : 'materiais'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -353,12 +373,12 @@ export default function PlanilhaScreen() {
             style={[
               styles.themeButton,
               {
-                backgroundColor: colors.surfaceElevated,
-                borderColor: colors.border,
+                backgroundColor: '#ffffff22',
+                borderColor: '#ffffff44',
               },
             ]}
           >
-            <Ionicons name={mode === 'dark' ? 'sunny-outline' : 'moon-outline'} size={18} color={colors.primary} />
+            <Ionicons name={mode === 'dark' ? 'sunny' : 'moon'} size={18} color="#fff" />
           </TouchableOpacity>
         </View>
 
@@ -758,21 +778,32 @@ const styles = StyleSheet.create({
 
   card: {
     borderRadius: 14,
-    padding: 14,
+    paddingVertical: 0,
     borderWidth: 1,
     marginBottom: 10,
-    gap: 10,
+    overflow: 'hidden',
   },
 
-  cardRow: {
+  cardTop: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
+    padding: 12,
+    justifyContent: 'space-between',
+  },
+
+  cardDivider: {
+    height: 1,
+  },
+
+  cardBottom: {
+    padding: 12,
   },
 
   badgeRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
+    marginBottom: 8,
   },
 
   unitBadge: {
@@ -782,8 +813,9 @@ const styles = StyleSheet.create({
   },
 
   productName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
+    marginBottom: 4,
   },
 
   productFull: {
@@ -791,13 +823,12 @@ const styles = StyleSheet.create({
   },
 
   batch: {
-    fontSize: 12,
+    fontSize: 11,
   },
 
   actionButtons: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 8,
+    gap: 6,
   },
 
   iconButton: {
@@ -809,7 +840,9 @@ const styles = StyleSheet.create({
   },
 
   statusColumn: {
-    gap: 6,
+    gap: 8,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
   },
 
   observationBox: {

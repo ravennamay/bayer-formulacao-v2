@@ -131,12 +131,12 @@ export default function ReportScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         {/* Header */}
-        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-          <View>
-            <Text style={[styles.title, { color: colors.textPrimary }]}>
-              Relatórios
+        <View style={[styles.header, { backgroundColor: colors.primary }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.title, { color: '#fff' }]}>
+              📊 Relatórios
             </Text>
-            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            <Text style={[styles.subtitle, { color: '#ffffffCC' }]}>
               {formatDateLabel(date)} · {count} {count === 1 ? 'material' : 'materiais'} · {greeting}
             </Text>
           </View>
@@ -146,13 +146,13 @@ export default function ReportScreen() {
             onPress={generate}
             style={[
               styles.iconBtn,
-              { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
+              { backgroundColor: '#ffffff22', borderColor: '#ffffff44' },
             ]}
           >
             {loading ? (
-              <ActivityIndicator size={18} color={colors.primary} />
+              <ActivityIndicator size={18} color="#fff" />
             ) : (
-              <Ionicons name="refresh" size={18} color={colors.primary} />
+              <Ionicons name="refresh" size={18} color="#fff" />
             )}
           </TouchableOpacity>
         </View>

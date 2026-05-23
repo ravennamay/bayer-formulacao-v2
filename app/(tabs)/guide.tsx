@@ -101,11 +101,11 @@ export default function GuiaScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <Text style={[styles.title, { color: colors.textPrimary }]}>
-          Guia de Formulação
+      <View style={[styles.header, { backgroundColor: colors.primary }]}>
+        <Text style={[styles.title, { color: '#fff' }]}>
+          📚 Guia de Formulação
         </Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+        <Text style={[styles.subtitle, { color: '#ffffffCC' }]}>
           Produtos, química e procedimentos
         </Text>
       </View>
@@ -287,10 +287,10 @@ const styles = StyleSheet.create({
 
   header: {
     padding: 16,
-    borderBottomWidth: 1,
+    paddingBottom: 20,
   },
 
-  title: { fontSize: 20, fontWeight: "800" },
+  title: { fontSize: 20, fontWeight: "800", marginBottom: 4 },
   subtitle: { fontSize: 12 },
 
   searchBox: {
