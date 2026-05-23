@@ -46,33 +46,53 @@ export default function TabLayout() {
 
   const screenOpts = {
     headerShown: false,
-    tabBarActiveTintColor: colors.primary,
+    tabBarActiveTintColor: '#7FFF00',
     tabBarInactiveTintColor: colors.textTertiary,
     tabBarStyle,
-    tabBarShowLabel: false,
+    tabBarShowLabel: true,
+    tabBarLabelStyle: {
+      fontSize: 10,
+      fontWeight: '500',
+      marginTop: 2,
+    },
   };
 
   return (
     <Tabs screenOptions={screenOpts}>
       <Tabs.Screen
         name="index"
-        options={{ tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'home' : 'home-outline'} color={color} focused={focused} colors={colors} /> }}
+        options={{
+          tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'home' : 'home-outline'} color={color} focused={focused} colors={colors} />,
+          tabBarLabel: 'Início',
+        }}
       />
       <Tabs.Screen
         name="planilha"
-        options={{ tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'grid' : 'grid-outline'} color={color} focused={focused} colors={colors} /> }}
+        options={{
+          tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'grid' : 'grid-outline'} color={color} focused={focused} colors={colors} />,
+          tabBarLabel: 'Planilha',
+        }}
       />
       <Tabs.Screen
         name="guide"
-        options={{ tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'book' : 'book-outline'} color={color} focused={focused} colors={colors} /> }}
+        options={{
+          tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'book' : 'book-outline'} color={color} focused={focused} colors={colors} />,
+          tabBarLabel: 'Guia',
+        }}
       />
       <Tabs.Screen
         name="report"
-        options={{ tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'document-text' : 'document-text-outline'} color={color} focused={focused} colors={colors} /> }}
+        options={{
+          tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'document-text' : 'document-text-outline'} color={color} focused={focused} colors={colors} />,
+          tabBarLabel: 'Relatório',
+        }}
       />
       <Tabs.Screen
         name="settings"
-        options={{ tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'person' : 'person-outline'} color={color} focused={focused} colors={colors} /> }}
+        options={{
+          tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'person' : 'person-outline'} color={color} focused={focused} colors={colors} />,
+          tabBarLabel: 'Config',
+        }}
       />
       <Tabs.Screen name="gallery" options={{ href: null }} />
       <Tabs.Screen name="turno" options={{ href: null }} />

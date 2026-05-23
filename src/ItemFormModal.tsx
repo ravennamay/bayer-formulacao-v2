@@ -17,7 +17,26 @@ import {
 import { api } from './auth';
 import type { ThemeColors } from './theme';
 import { useTheme } from './theme';
-import { MATERIAL_STATUS, ProductionItem, SCS, SITUATIONS, UNITS } from './types';
+import { ProductionItem, SCS, SITUATIONS, UNITS } from './types';
+
+// Product weights in kg per bag
+const PRODUCT_WEIGHTS: Record<string, number> = {
+  'UREIA': 700,
+  'TRIFLOXYSTROBIN': 500,
+  'BIXAFEN': 500,
+  'PROTIOCONAZOLE': 500,
+  'INPYRFLUXAM': 500,
+  'VERANGO': 500,
+  'NATIVO': 500,
+  'FOX XPRO': 500,
+  'FOX': 500,
+  'OBERON': 500,
+  'BELT': 500,
+  'CONNECT': 500,
+  'MOVENTO': 500,
+  'SPHERE MAX': 500,
+  'DECIS': 500,
+};
 
 type Props = {
   visible: boolean;
@@ -35,9 +54,8 @@ export default function ItemFormModal({ visible, initial, date, onClose, onSaved
   const [product, setProduct] = useState('');
   const [batch, setBatch] = useState('');
   const [quantity, setQuantity] = useState('');
-  const [quantityUnit, setQuantityUnit] = useState('bag');
-  const [materialStatus, setMaterialStatus] = useState<string>(MATERIAL_STATUS[0]);
-  const [situation, setSituation] = useState<string>(SITUATIONS[1]);
+  const [calculatedWeight, setCalculatedWeight] = useState(0);
+  const [situation, setSituation] = useState<string>(SITUATIONS[0]);
   const [observation, setObservation] = useState('');
   const [products, setProducts] = useState<{ name: string; abbr: string }[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -69,37 +87,50 @@ export default function ItemFormModal({ visible, initial, date, onClose, onSaved
       setProduct(initial.product);
       setBatch(initial.batch);
       setQuantity(initial.quantity != null ? String(initial.quantity) : '');
-      setQuantityUnit(initial.quantity_unit || 'bag');
-      setMaterialStatus(initial.material_status);
       setSituation(initial.situation);
       setObservation(initial.observation || '');
+      calculateWeight(initial.product, initial.quantity || 1);
     } else {
       setUnit(UNITS[0]);
       setSc(SCS[0]);
       setProduct('');
       setBatch('');
       setQuantity('');
-      setQuantityUnit('bag');
-      setMaterialStatus(MATERIAL_STATUS[0]);
-      setSituation(SITUATIONS[1]);
+      setSituation(SITUATIONS[0]);
       setObservation('');
+      setCalculatedWeight(0);
     }
   }, [visible, initial]);
+
+  // Auto-calculate weight when quantity or product changes
+  useEffect(() => {
+    if (product && quantity) {
+      const qty = Number(quantity);
+      if (!isNaN(qty)) {
+        calculateWeight(product, qty);
+      }
+    }
+  }, [product, quantity]);
+
+  const calculateWeight = (prod: string, qty: number) => {
+    const weight = PRODUCT_WEIGHTS[prod.toUpperCase()] || 0;
+    setCalculatedWeight(weight * qty);
+  };
 
   const filteredProducts = products.filter(p =>
     p.name.toLowerCase().includes(product.toLowerCase())
   );
 
   const save = async () => {
-    if (!product.trim() || !batch.trim()) {
-      Alert.alert('Atenção', 'Produto e lote são obrigatórios.');
+    if (!product.trim() || !batch.trim() || !quantity.trim()) {
+      Alert.alert('Atenção', 'Produto, lote e quantidade são obrigatórios.');
       return;
     }
 
-    const parsedQty = quantity ? Number(quantity.replace(',', '.')) : null;
+    const parsedQty = Number(quantity);
 
-    if (parsedQty !== null && isNaN(parsedQty)) {
-      Alert.alert('Erro', 'Quantidade inválida');
+    if (isNaN(parsedQty) || parsedQty <= 0) {
+      Alert.alert('Erro', 'Quantidade deve ser um número maior que zero');
       return;
     }
 
@@ -113,8 +144,8 @@ export default function ItemFormModal({ visible, initial, date, onClose, onSaved
         product: product.trim(),
         batch: batch.trim(),
         quantity: parsedQty,
-        quantity_unit: quantityUnit,
-        material_status: materialStatus,
+        quantity_unit: 'bag',
+        material_status: 'Disponível',
         situation,
         observation: observation.trim(),
       };
@@ -239,51 +270,68 @@ export default function ItemFormModal({ visible, initial, date, onClose, onSaved
               />
             </Field>
 
-            {/* Quantidade */}
-            <View style={{ gap: 8 }}>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <View style={{ flex: 2 }}>
-                  <Field label="Quantidade" colors={colors}>
-                    <TextInput
-                      value={quantity}
-                      onChangeText={setQuantity}
-                      placeholder="0"
-                      placeholderTextColor={colors.textTertiary}
-                      keyboardType="decimal-pad"
-                      style={[
-                        styles.input,
-                        {
-                          backgroundColor: colors.surfaceElevated,
-                          borderColor: colors.border,
-                          color: colors.textPrimary,
-                        },
-                      ]}
-                    />
-                  </Field>
-                </View>
+            {/* Quantidade em Bags */}
+            <Field label="Quantidade (Bags)" colors={colors}>
+              <View style={styles.quantityRow}>
+                <TextInput
+                  value={quantity}
+                  onChangeText={setQuantity}
+                  placeholder="0"
+                  placeholderTextColor={colors.textTertiary}
+                  keyboardType="decimal-pad"
+                  style={[
+                    styles.input,
+                    {
+                      backgroundColor: colors.surfaceElevated,
+                      borderColor: colors.border,
+                      color: colors.textPrimary,
+                    },
+                  ]}
+                />
+                <Text style={[styles.quantityUnit, { color: colors.textSecondary }]}>
+                  bag{quantity !== '1' ? 's' : ''}
+                </Text>
+              </View>
+            </Field>
 
+            {/* Peso Automático */}
+            {calculatedWeight > 0 && (
+              <View
+                style={[
+                  styles.weightCard,
+                  {
+                    backgroundColor: colors.primary + '12',
+                    borderColor: colors.primary + '30',
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="calculator-outline"
+                  size={18}
+                  color={colors.primary}
+                />
                 <View style={{ flex: 1 }}>
-                  <Field label="Unidade" colors={colors}>
-                    <Chips
-                      options={['bag', 'kg', 'L']}
-                      value={quantityUnit}
-                      onChange={setQuantityUnit}
-                      colors={colors}
-                    />
-                  </Field>
+                  <Text
+                    style={{
+                      color: colors.textSecondary,
+                      fontSize: 11,
+                      fontWeight: '500',
+                    }}
+                  >
+                    Peso Calculado
+                  </Text>
+                  <Text
+                    style={{
+                      color: colors.primary,
+                      fontSize: 16,
+                      fontWeight: '800',
+                    }}
+                  >
+                    {calculatedWeight} kg
+                  </Text>
                 </View>
               </View>
-            </View>
-
-            {/* Status do Material */}
-            <Field label="Status do Material" colors={colors}>
-              <Chips
-                options={[...MATERIAL_STATUS]}
-                value={materialStatus}
-                onChange={setMaterialStatus}
-                colors={colors}
-              />
-            </Field>
+            )}
 
             {/* Situação */}
             <Field label="Situação" colors={colors}>
@@ -332,7 +380,7 @@ export default function ItemFormModal({ visible, initial, date, onClose, onSaved
               ) : (
                 <>
                   <Ionicons name="checkmark" size={20} color="#fff" />
-                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>
+                  <Text style={styles.saveBtnText}>
                     {initial ? 'Atualizar' : 'Criar item'}
                   </Text>
                 </>
@@ -448,6 +496,28 @@ const styles = StyleSheet.create({
     height: 44,
   },
 
+  quantityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+
+  quantityUnit: {
+    fontSize: 13,
+    fontWeight: '600',
+    minWidth: 50,
+  },
+
+  weightCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -481,5 +551,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 8,
     marginTop: 8,
+  },
+
+  saveBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
   },
 });

@@ -1,10 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, useAuth } from '../../src/auth';
-import BayerLogo from '../../src/BayerLogo';
 import { useTheme } from '../../src/theme';
 import { ProductionItem, formatDateLabel, todayISO } from '../../src/types';
 
@@ -13,6 +12,7 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const [items, setItems] = useState<ProductionItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [userPhoto, setUserPhoto] = useState<string | null>(null);
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -31,9 +31,7 @@ export default function HomeScreen() {
   }, [fetchItems]));
 
   const stats = useMemo(() => {
-    const situations = ['Recebido', 'A preparar', 'Preparado', 'Em fábrica'];
     return {
-      total: items.length,
       recebido: items.filter(i => i.situation === 'Recebido').length,
       aPreparar: items.filter(i => i.situation === 'A preparar').length,
       preparado: items.filter(i => i.situation === 'Preparado').length,
@@ -53,7 +51,7 @@ export default function HomeScreen() {
       style={[styles.safe, { backgroundColor: colors.background }]}
       edges={['top']}
     >
-      {/* Header Card */}
+      {/* Header Card com Foto do Usuário */}
       <View
         style={[
           styles.headerCard,
@@ -63,135 +61,115 @@ export default function HomeScreen() {
           },
         ]}
       >
-        <View style={styles.headerRow}>
-          <View
-            style={[
-              styles.logoBg,
-              {
-                backgroundColor: '#FFFFFF',
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <BayerLogo size={28} />
-          </View>
-
-          <View style={{ flex: 1 }}>
+        <View style={styles.headerContent}>
+          <View>
             <Text style={[styles.greeting, { color: colors.textPrimary }]}>
               {greeting()}, {user?.name || 'Operador'}
             </Text>
-            <Text style={[styles.appTitle, { color: colors.textSecondary }]}>
-              Formulação · Bayer
+            <Text
+              style={[styles.sector, { color: colors.textSecondary }]}
+            >
+              Buffer • Preparação
+            </Text>
+            <Text
+              style={[styles.date, { color: colors.textTertiary }]}
+            >
+              {dateLabel}
             </Text>
           </View>
 
-          <TouchableOpacity
-            onPress={toggle}
-            style={[
-              styles.themeBtn,
-              {
-                backgroundColor: colors.surfaceElevated,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <Ionicons
-              name={mode === 'dark' ? 'sunny-outline' : 'moon-outline'}
-              size={18}
-              color={colors.primary}
-            />
-          </TouchableOpacity>
-        </View>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              onPress={() => router.navigate('/(tabs)/settings' as any)}
+              hitSlop={10}
+            >
+              {userPhoto ? (
+                <Image
+                  source={{ uri: userPhoto }}
+                  style={styles.userPhoto}
+                />
+              ) : (
+                <View
+                  style={[
+                    styles.userPhotoPlaceholder,
+                    {
+                      backgroundColor: colors.surfaceElevated,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="person-circle"
+                    size={48}
+                    color={colors.primary}
+                  />
+                </View>
+              )}
+            </TouchableOpacity>
 
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          {dateLabel}
-        </Text>
+            <TouchableOpacity
+              onPress={toggle}
+              style={[
+                styles.themeBtn,
+                {
+                  backgroundColor: colors.surfaceElevated,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
+              <Ionicons
+                name={mode === 'dark' ? 'sunny-outline' : 'moon-outline'}
+                size={16}
+                color={colors.primary}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Shift Summary */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>
-            RESUMO DO TURNO
-          </Text>
-
-          <View
-            style={[
-              styles.summaryCard,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.summaryIcon,
-                {
-                  backgroundColor: colors.primary + '22',
-                },
-              ]}
-            >
-              <Ionicons
-                name="cube-outline"
-                size={32}
-                color={colors.primary}
-              />
-            </View>
-
-            <View>
-              <Text style={[styles.summaryNum, { color: colors.textPrimary }]}>
-                {stats.total}
-              </Text>
-              <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>
-                Materiais hoje
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Production Status */}
+        {/* Situação da Produção */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>
             SITUAÇÃO DA PRODUÇÃO
           </Text>
 
           <View style={styles.statusGrid}>
-            <StatusCard
-              icon="download-outline"
+            <StatusItem
               label="Recebido"
-              value={stats.recebido}
+              count={stats.recebido}
+              icon="download-outline"
               color="#3B82F6"
               colors={colors}
             />
-            <StatusCard
-              icon="time-outline"
+            <StatusItem
               label="A preparar"
-              value={stats.aPreparar}
+              count={stats.aPreparar}
+              icon="time-outline"
               color="#F59E0B"
               colors={colors}
             />
-            <StatusCard
-              icon="checkmark-circle-outline"
+            <StatusItem
               label="Preparado"
-              value={stats.preparado}
+              count={stats.preparado}
+              icon="checkmark-circle-outline"
               color="#10B981"
               colors={colors}
             />
-            <StatusCard
-              icon="sync-circle-outline"
+            <StatusItem
               label="Em fábrica"
-              value={stats.fabrica}
+              count={stats.fabrica}
+              icon="sync-circle-outline"
               color="#8B5CF6"
               colors={colors}
             />
           </View>
         </View>
 
-        {/* By Unit */}
+        {/* Por Unidade */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>
             POR UNIDADE
@@ -208,73 +186,39 @@ export default function HomeScreen() {
                 },
               ]}
             >
-              <Ionicons name="cube-outline" size={24} color={colors.primary} />
-              <Text style={[styles.unitName, { color: colors.textPrimary }]}>
-                {unit}
-              </Text>
-              <Text style={[styles.unitCount, { color: colors.textSecondary }]}>
+              <View
+                style={[
+                  styles.unitIcon,
+                  {
+                    backgroundColor: colors.primary + '22',
+                  },
+                ]}
+              >
+                <Ionicons name="cube-outline" size={20} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={[
+                    styles.unitName,
+                    { color: colors.textPrimary },
+                  ]}
+                >
+                  {unit}
+                </Text>
+              </View>
+              <Text
+                style={[
+                  styles.unitCount,
+                  { color: colors.primary },
+                ]}
+              >
                 {items.filter(i => i.unit === unit).length}
               </Text>
             </View>
           ))}
         </View>
 
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>
-            AÇÕES RÁPIDAS
-          </Text>
-
-          <TouchableOpacity
-            onPress={() => router.navigate('/(tabs)/planilha' as any)}
-            style={[
-              styles.actionCard,
-              {
-                backgroundColor: colors.primary,
-              },
-            ]}
-          >
-            <Ionicons name="grid-outline" size={20} color="#fff" />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.actionTitle}>Planilha Operacional</Text>
-              <Text style={styles.actionSub}>Controle completo de materiais</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.6)" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => router.navigate('/(tabs)/report' as any)}
-            style={[
-              styles.actionCard,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-                borderWidth: 1,
-              },
-            ]}
-          >
-            <Ionicons
-              name="document-text-outline"
-              size={20}
-              color={colors.primary}
-            />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.actionTitle, { color: colors.textPrimary }]}>
-                Relatórios
-              </Text>
-              <Text style={[styles.actionSub, { color: colors.textSecondary }]}>
-                Gerar e exportar relatórios
-              </Text>
-            </View>
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color={colors.textTertiary}
-            />
-          </TouchableOpacity>
-        </View>
-
-        {/* Last 7 Days */}
+        {/* Gráfico dos Últimos 7 Dias */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.textTertiary }]}>
             ÚLTIMOS 7 DIAS
@@ -301,7 +245,7 @@ export default function HomeScreen() {
                   { color: colors.textSecondary },
                 ]}
               >
-                Dados de resumo dos últimos 7 dias
+                Gráfico de produção dos últimos 7 dias
               </Text>
             </View>
           </View>
@@ -311,26 +255,26 @@ export default function HomeScreen() {
   );
 }
 
-function StatusCard({
-  icon,
+function StatusItem({
   label,
-  value,
+  count,
+  icon,
   color,
   colors,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
   label: string;
-  value: number;
+  count: number;
+  icon: keyof typeof Ionicons.glyphMap;
   color: string;
   colors: any;
 }) {
   return (
     <View
       style={[
-        styles.statusCard,
+        styles.statusItem,
         {
-          backgroundColor: color + '15',
-          borderColor: color + '30',
+          backgroundColor: color + '12',
+          borderColor: color + '20',
         },
       ]}
     >
@@ -342,15 +286,15 @@ function StatusCard({
           },
         ]}
       >
-        <Ionicons name={icon} size={20} color={color} />
+        <Ionicons name={icon} size={18} color={color} />
       </View>
-
-      <Text style={[styles.statusValue, { color }]}>
-        {value}
-      </Text>
 
       <Text style={[styles.statusLabel, { color: colors.textSecondary }]}>
         {label}
+      </Text>
+
+      <Text style={[styles.statusCount, { color }]}>
+        {count}
       </Text>
     </View>
   );
@@ -362,29 +306,20 @@ const styles = StyleSheet.create({
   },
 
   headerCard: {
-    marginHorizontal: 16,
-    marginTop: 12,
+    marginHorizontal: 12,
+    marginTop: 8,
     marginBottom: 12,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 16,
     borderWidth: 1,
-    gap: 10,
   },
 
-  headerRow: {
+  headerContent: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
     gap: 12,
-  },
-
-  logoBg: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
   },
 
   greeting: {
@@ -393,19 +328,40 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
 
-  appTitle: {
+  sector: {
     fontSize: 11,
     fontWeight: '500',
+    marginBottom: 4,
   },
 
-  subtitle: {
-    fontSize: 12,
-    fontWeight: '500',
+  date: {
+    fontSize: 10,
+    fontWeight: '400',
+  },
+
+  headerActions: {
+    gap: 8,
+    alignItems: 'center',
+  },
+
+  userPhoto: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+
+  userPhotoPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   themeBtn: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     borderRadius: 10,
     borderWidth: 1,
     alignItems: 'center',
@@ -423,40 +379,11 @@ const styles = StyleSheet.create({
   },
 
   sectionTitle: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     paddingHorizontal: 4,
-  },
-
-  summaryCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-
-  summaryIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  summaryNum: {
-    fontSize: 24,
-    fontWeight: '800',
-    marginBottom: 2,
-  },
-
-  summaryLabel: {
-    fontSize: 12,
-    fontWeight: '500',
   },
 
   statusGrid: {
@@ -465,33 +392,35 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
 
-  statusCard: {
+  statusItem: {
     flex: 1,
-    minWidth: '48%',
-    paddingHorizontal: 12,
-    paddingVertical: 14,
+    minWidth: '47%',
+    paddingHorizontal: 10,
+    paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
+    gap: 4,
   },
 
   statusIconBg: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  statusValue: {
-    fontSize: 18,
-    fontWeight: '800',
+  statusLabel: {
+    fontSize: 10,
+    fontWeight: '500',
+    textAlign: 'center',
   },
 
-  statusLabel: {
-    fontSize: 11,
-    fontWeight: '600',
+  statusCount: {
+    fontSize: 18,
+    fontWeight: '800',
   },
 
   unitCard: {
@@ -499,43 +428,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingVertical: 12,
+    borderRadius: 12,
     borderWidth: 1,
     marginBottom: 8,
   },
 
+  unitIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   unitName: {
-    flex: 1,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
 
   unitCount: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-
-  actionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    borderRadius: 12,
-    marginBottom: 10,
-  },
-
-  actionTitle: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 2,
-  },
-
-  actionSub: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 12,
+    fontSize: 16,
+    fontWeight: '800',
   },
 
   chartCard: {
@@ -551,7 +465,7 @@ const styles = StyleSheet.create({
   },
 
   chartText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
     textAlign: 'center',
   },
