@@ -81,6 +81,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="products"
+        options={{
+          tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'cube' : 'cube-outline'} color={color} focused={focused} colors={colors} />,
+          tabBarLabel: 'Catálogo',
+        }}
+      />
+      <Tabs.Screen
         name="report"
         options={{
           tabBarIcon: ({ color, focused }) => <TabIcon name={focused ? 'document-text' : 'document-text-outline'} color={color} focused={focused} colors={colors} />,

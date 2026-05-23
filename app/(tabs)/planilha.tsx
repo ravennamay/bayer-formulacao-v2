@@ -221,114 +221,83 @@ export default function PlanilhaScreen() {
         },
       ]}
     >
-      <View style={styles.cardTop}>
-        <View style={{ flex: 1 }}>
-          <View style={styles.badgeRow}>
-            <View
-              style={[
-                styles.unitBadge,
-                {
-                  backgroundColor: colors.primary + '22',
-                },
-              ]}
-            >
-              <Text
-                style={{
-                  color: colors.primary,
-                  fontSize: 10,
-                  fontWeight: '700',
-                }}
-              >
-                {item.unit}
-              </Text>
-            </View>
-            <View
-              style={[
-                styles.unitBadge,
-                {
-                  backgroundColor: '#8B5CF644',
-                },
-              ]}
-            >
-              <Text
-                style={{
-                  color: '#8B5CF6',
-                  fontSize: 10,
-                  fontWeight: '700',
-                }}
-              >
-                {item.sc}
-              </Text>
-            </View>
+      {/* Header: Unit + SC */}
+      <View style={styles.cardHeader}>
+        <Text style={[styles.unitScLabel, { color: colors.textSecondary }]}>
+          {item.unit} • {item.sc}
+        </Text>
+      </View>
+
+      {/* Main Content */}
+      <View style={styles.cardMainContent}>
+        {/* Left: Product Badge + Info */}
+        <View style={styles.cardLeft}>
+          <View
+            style={[
+              styles.productBadge,
+              {
+                backgroundColor: colors.primary,
+              },
+            ]}
+          >
+            <Text style={styles.productBadgeText}>
+              {item.product_abbr.slice(0, 3).toUpperCase()}
+            </Text>
           </View>
-          <Text style={[styles.productName, { color: colors.textPrimary }]}>
-            {item.product_abbr}
-          </Text>
-          <Text style={[styles.batch, { color: colors.textTertiary }]}>
-            Lote {item.batch}
-            {item.quantity ? ` · ${item.quantity}${item.quantity_unit}` : ''}
-          </Text>
+
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.productTitle, { color: colors.textPrimary }]}>
+              {item.product}
+            </Text>
+            <Text style={[styles.productMeta, { color: colors.textSecondary }]}>
+              Lote {item.batch}
+              {item.quantity ? ` • ${item.quantity} ${item.quantity_unit}` : ''}
+            </Text>
+          </View>
         </View>
 
-        <View style={styles.actionButtons}>
+        {/* Right: Actions */}
+        <View style={styles.cardActions}>
           <TouchableOpacity
             onPress={() => handleEdit(item)}
             hitSlop={8}
             style={[
-              styles.iconButton,
+              styles.smallIconButton,
               {
                 backgroundColor: colors.primary + '22',
               },
             ]}
           >
-            <Ionicons name="pencil" size={14} color={colors.primary} />
+            <Ionicons name="pencil-outline" size={16} color={colors.primary} />
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => handleDelete(item.id)}
             hitSlop={8}
             style={[
-              styles.iconButton,
+              styles.smallIconButton,
               {
                 backgroundColor: '#FF4B4B22',
               },
             ]}
           >
-            <Ionicons name="trash" size={14} color="#FF4B4B" />
+            <Ionicons name="trash-outline" size={16} color="#FF4B4B" />
           </TouchableOpacity>
         </View>
       </View>
 
+      {/* Status Pills */}
       <View
         style={[
-          styles.cardDivider,
-          { backgroundColor: colors.border },
+          styles.cardStatusRow,
+          {
+            borderTopColor: colors.border,
+          },
         ]}
-      />
-
-      <View style={styles.cardBottom}>
-        <View style={styles.statusColumn}>
-          <StatusPill label={item.situation} small />
-          <StatusPill label={item.material_status} small />
-        </View>
+      >
+        <StatusPill label={item.situation} small />
+        <StatusPill label={item.material_status} small />
       </View>
-
-      {item.observation && (
-        <View
-          style={[
-            styles.observationBox,
-            {
-              backgroundColor: colors.surfaceElevated,
-              borderColor: colors.border,
-              marginTop: 8,
-            },
-          ]}
-        >
-          <Text style={[styles.observationText, { color: colors.textSecondary }]}>
-            {item.observation}
-          </Text>
-        </View>
-      )}
     </View>
   );
 
@@ -777,33 +746,88 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    borderRadius: 14,
-    paddingVertical: 0,
-    borderWidth: 1,
-    marginBottom: 10,
+    borderRadius: 12,
     overflow: 'hidden',
+    marginBottom: 10,
+    borderWidth: 1,
   },
 
-  cardTop: {
+  cardHeader: {
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 6,
+  },
+
+  unitScLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+
+  cardMainContent: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    padding: 12,
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 10,
   },
 
-  cardDivider: {
-    height: 1,
+  cardLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
 
-  cardBottom: {
-    padding: 12,
+  productBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  productBadgeText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+
+  productTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 2,
+  },
+
+  productMeta: {
+    fontSize: 12,
+  },
+
+  cardActions: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+
+  smallIconButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  cardStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderTopWidth: 1,
   },
 
   badgeRow: {
     flexDirection: 'row',
     gap: 6,
-    marginBottom: 8,
   },
 
   unitBadge: {
@@ -815,7 +839,6 @@ const styles = StyleSheet.create({
   productName: {
     fontSize: 15,
     fontWeight: '800',
-    marginBottom: 4,
   },
 
   productFull: {
@@ -841,8 +864,6 @@ const styles = StyleSheet.create({
 
   statusColumn: {
     gap: 8,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
   },
 
   observationBox: {
