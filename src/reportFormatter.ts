@@ -50,6 +50,8 @@ export const formatReportText = (items: ProductionItem[], extraObs?: string): st
     }
   });
 
+  text += '──────────────\n\n';
+
   if (extraObs) {
     text += '*Observações:*\n';
     text += extraObs;
