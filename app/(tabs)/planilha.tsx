@@ -10,12 +10,11 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
-  ScrollView,
   Platform,
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import * as FileSystem from 'expo-file-system';
@@ -28,7 +27,7 @@ import { useAuth, api } from '../../src/auth';
 import StatusPill from '../../src/StatusPill';
 import ItemFormModal from '../../src/ItemFormModal';
 
-import { ProductionItem, todayISO, formatDateLabel, formatBags, SITUATIONS } from '../../src/types';
+import { ProductionItem, todayISO, formatDateLabel, formatBags } from '../../src/types';
 
 const buildLast14Days = (): string[] => {
   const out: string[] = [];
@@ -36,7 +35,6 @@ const buildLast14Days = (): string[] => {
 
   for (let i = 7; i >= -6; i--) {
     const dt = new Date(d);
-
     dt.setDate(d.getDate() - i);
 
     const yyyy = dt.getFullYear();
@@ -50,9 +48,8 @@ const buildLast14Days = (): string[] => {
 };
 
 export default function PlanilhaScreen() {
-  const { colors, mode, toggle } = useTheme();
+  const { colors } = useTheme();
   const { token } = useAuth();
-  const router = useRouter();
 
   const [date, setDate] = useState(todayISO());
   const [items, setItems] = useState<ProductionItem[]>([]);
@@ -65,16 +62,12 @@ export default function PlanilhaScreen() {
 
   const viewShotRef = useRef<ViewShot>(null);
 
-  const dates = useMemo(buildLast14Days, []);
-
   const fetchItems = useCallback(async () => {
     setLoading(true);
-
     try {
       const r = await api.get('/items', {
         params: { date },
       });
-
       setItems(r.data);
     } catch (err) {
       console.log(err);
@@ -96,9 +89,7 @@ export default function PlanilhaScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-
     await fetchItems();
-
     setRefreshing(false);
   };
 
@@ -128,10 +119,8 @@ export default function PlanilhaScreen() {
 
     return {
       total: items.length,
-      recebido: count('Recebido'),
       aPreparar: count('A preparar'),
       preparado: count('Preparado'),
-      fabrica: count('Em fábrica'),
     };
   }, [items]);
 
@@ -156,52 +145,9 @@ export default function PlanilhaScreen() {
     ]);
   };
 
-  const exportExcel = async () => {
-    try {
-      const url = `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/export/excel?date=${date}`;
-
-      const target = `${FileSystem.cacheDirectory}bayer_planilha_${date}.xlsx`;
-
-      const dl = await FileSystem.downloadAsync(url, target, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(dl.uri, {
-          mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          dialogTitle: 'Exportar planilha',
-        });
-      } else {
-        Alert.alert('Excel salvo', `Arquivo em: ${dl.uri}`);
-      }
-    } catch (err) {
-      console.log(err);
-      Alert.alert('Erro', 'Falha ao exportar Excel');
-    }
-  };
-
-  const exportPNG = async () => {
-    try {
-      if (!viewShotRef.current) return;
-
-      const uri = await viewShotRef.current.capture?.();
-
-      if (!uri) return;
-
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, {
-          mimeType: 'image/png',
-          dialogTitle: 'Compartilhar imagem',
-        });
-      } else {
-        Alert.alert('PNG gerado', `Arquivo em: ${uri}`);
-      }
-    } catch (err) {
-      console.log(err);
-      Alert.alert('Erro', 'Falha ao exportar PNG');
-    }
+  const handleEdit = (item: ProductionItem) => {
+    setEditing(item);
+    setFormVisible(true);
   };
 
   const renderItem = ({ item }: { item: ProductionItem }) => (
@@ -222,39 +168,39 @@ export default function PlanilhaScreen() {
         </Text>
       </View>
 
-      {/* Card Header with Badge and Icons */}
+      {/* Header: Badge + Title + Actions */}
       <View style={styles.cardHeader}>
-        <View style={styles.badgeAndTitle}>
+        <View style={styles.headerLeft}>
           <View style={[styles.unitBadge, { backgroundColor: colors.primary }]}>
             <Text style={styles.badgeText}>{item.unit.slice(0, 3).toUpperCase()}</Text>
           </View>
-          <View style={styles.titleBlock}>
+          <View style={styles.titleSection}>
             <Text style={[styles.productTitle, { color: colors.textPrimary }]}>
               {item.product.toUpperCase()}
             </Text>
-            <Text style={[styles.scInfo, { color: colors.textSecondary }]}>
+            <Text style={[styles.scLabel, { color: colors.textSecondary }]}>
               {item.sc}
             </Text>
           </View>
         </View>
 
-        <View style={styles.headerActions}>
-          <TouchableOpacity>
-            <Ionicons name="pencil" size={18} color={colors.textSecondary} />
+        <View style={styles.actions}>
+          <TouchableOpacity onPress={() => handleEdit(item)}>
+            <Ionicons name="pencil" size={16} color={colors.textSecondary} />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => handleDelete(item.id)}>
-            <Ionicons name="trash" size={18} color={colors.textSecondary} />
+            <Ionicons name="trash" size={16} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Card Info */}
-      <Text style={[styles.batchInfo, { color: colors.textSecondary }]}>
+      {/* Batch Info */}
+      <Text style={[styles.batchText, { color: colors.textSecondary }]}>
         Lote {item.batch} • {formatBags(item.quantity)}
       </Text>
 
-      {/* Card Footer with Status Pills */}
-      <View style={styles.cardFooter}>
+      {/* Status Pills */}
+      <View style={styles.footer}>
         <StatusPill label={item.situation} />
         <StatusPill label={item.material_status} />
       </View>
@@ -263,69 +209,61 @@ export default function PlanilhaScreen() {
 
   const renderHeader = () => (
     <View>
-      {/* Date Selector */}
-      <View style={[styles.dateContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <TouchableOpacity style={styles.dateNavButton}>
+      {/* Date Navigation */}
+      <View style={[styles.dateNav, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <TouchableOpacity style={styles.dateBtn}>
           <Ionicons name="chevron-back" size={20} color={colors.primary} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.dateSelector, { borderColor: colors.primary }]}>
-          <Ionicons name="calendar" size={18} color={colors.primary} style={{ marginRight: 8 }} />
-          <Text style={[styles.dateText, { color: colors.textPrimary }]}>
+        <TouchableOpacity style={[styles.dateDisplay, { borderColor: colors.primary }]}>
+          <Ionicons name="calendar" size={18} color={colors.primary} />
+          <Text style={[styles.dateLabel, { color: colors.textPrimary }]}>
             {formatDateLabel(date)}
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.dateNavButton}>
+        <TouchableOpacity style={styles.dateBtn}>
           <Ionicons name="chevron-forward" size={20} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
-      {/* Stats Card */}
+      {/* Statistics Card */}
       <View style={[styles.statsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <View style={styles.statsHeader}>
-          <View style={styles.statsTitleBlock}>
-            <View style={[styles.statusBadge, { backgroundColor: colors.primary }]}>
-              <Text style={{ fontSize: 12, fontWeight: '600', color: '#fff' }}>
-                {String(stats.total).padStart(2, '0')}
-              </Text>
+        <View style={styles.statsTop}>
+          <View style={styles.totalBox}>
+            <View style={[styles.totalBadge, { backgroundColor: colors.primary }]}>
+              <Text style={styles.totalNum}>{String(stats.total).padStart(2, '0')}</Text>
             </View>
-            <Text style={[styles.statsTitle, { color: colors.textPrimary }]}>
-              Total
-            </Text>
+            <Text style={[styles.totalText, { color: colors.textPrimary }]}>Total</Text>
           </View>
-          <TouchableOpacity style={[styles.exportButton, { backgroundColor: colors.primary }]}>
+          <TouchableOpacity style={[styles.exportBtn, { backgroundColor: colors.primary }]}>
             <Ionicons name="download" size={18} color="#fff" />
           </TouchableOpacity>
         </View>
 
-        <View style={styles.statsGrid}>
-          <View style={styles.statItem}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              A Preparar
-            </Text>
-            <Text style={[styles.statValue, { color: colors.textPrimary }]}>
+        <View style={styles.statsBottom}>
+          <View style={styles.statCount}>
+            <Text style={[styles.countLabel, { color: colors.textSecondary }]}>A Preparar</Text>
+            <Text style={[styles.countNum, { color: colors.textPrimary }]}>
               {String(stats.aPreparar).padStart(2, '0')}
             </Text>
           </View>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-          <View style={styles.statItem}>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-              Preparado
-            </Text>
-            <Text style={[styles.statValue, { color: colors.textPrimary }]}>
+          <View style={styles.statCount}>
+            <Text style={[styles.countLabel, { color: colors.textSecondary }]}>Preparado</Text>
+            <Text style={[styles.countNum, { color: colors.textPrimary }]}>
               {String(stats.preparado).padStart(2, '0')}
             </Text>
           </View>
         </View>
       </View>
 
-      {/* Search and Filter */}
-      <View style={styles.headerContent}>
+      {/* Search */}
+      <View style={styles.searchWrap}>
         <TextInput
-          style={[styles.search, { backgroundColor: colors.surface, color: colors.textPrimary, borderColor: colors.border }]}
+          style={[styles.searchInput, { backgroundColor: colors.surface, color: colors.textPrimary, borderColor: colors.border }]}
           placeholder="Buscar produto..."
           placeholderTextColor={colors.textSecondary}
           value={search}
@@ -336,7 +274,7 @@ export default function PlanilhaScreen() {
   );
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ViewShot
         ref={viewShotRef}
         options={{
@@ -347,8 +285,8 @@ export default function PlanilhaScreen() {
         style={{ flex: 1 }}
       >
         {loading ? (
-          <View style={styles.empty}>
-            <ActivityIndicator color={colors.primary} />
+          <View style={styles.centerLoader}>
+            <ActivityIndicator color={colors.primary} size="large" />
           </View>
         ) : (
           <FlatList
@@ -366,7 +304,6 @@ export default function PlanilhaScreen() {
             contentContainerStyle={{
               paddingBottom: 120,
             }}
-            scrollIndicatorInsets={{ right: 1 }}
           />
         )}
       </ViewShot>
@@ -393,30 +330,37 @@ export default function PlanilhaScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: {
+  container: {
     flex: 1,
   },
 
-  dateContainer: {
+  centerLoader: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  /* Date Navigation */
+  dateNav: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
     marginHorizontal: 16,
     marginTop: 16,
     marginBottom: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
   },
 
-  dateNavButton: {
+  dateBtn: {
     padding: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
 
-  dateSelector: {
+  dateDisplay: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
@@ -426,13 +370,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1.5,
+    gap: 8,
   },
 
-  dateText: {
+  dateLabel: {
     fontSize: 16,
     fontWeight: '600',
   },
 
+  /* Statistics Card */
   statsCard: {
     marginHorizontal: 16,
     marginBottom: 16,
@@ -442,20 +388,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
 
-  statsHeader: {
+  statsTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 14,
   },
 
-  statsTitleBlock: {
+  totalBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
 
-  statusBadge: {
+  totalBadge: {
     width: 40,
     height: 40,
     borderRadius: 8,
@@ -463,12 +409,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  statsTitle: {
+  totalNum: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fff',
+  },
+
+  totalText: {
     fontSize: 16,
     fontWeight: '700',
   },
 
-  exportButton: {
+  exportBtn: {
     width: 40,
     height: 40,
     borderRadius: 8,
@@ -476,24 +428,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  statsGrid: {
+  statsBottom: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
   },
 
-  statItem: {
+  statCount: {
     flex: 1,
     alignItems: 'center',
     gap: 4,
   },
 
-  statLabel: {
+  countLabel: {
     fontSize: 12,
     fontWeight: '500',
   },
 
-  statValue: {
+  countNum: {
     fontSize: 18,
     fontWeight: '700',
   },
@@ -501,15 +453,16 @@ const styles = StyleSheet.create({
   divider: {
     width: 1,
     height: 30,
-    backgroundColor: '#e0e0e0',
+    marginHorizontal: 8,
   },
 
-  headerContent: {
+  /* Search */
+  searchWrap: {
     paddingHorizontal: 16,
     marginBottom: 12,
   },
 
-  search: {
+  searchInput: {
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -517,12 +470,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
 
+  /* Card Item */
   card: {
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
     marginHorizontal: 16,
     marginBottom: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1,
   },
 
   activityTag: {
@@ -549,7 +504,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  badgeAndTitle: {
+  headerLeft: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
@@ -562,6 +517,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
 
   badgeText: {
@@ -570,7 +526,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
 
-  titleBlock: {
+  titleSection: {
     flex: 1,
     justifyContent: 'center',
   },
@@ -581,34 +537,29 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
 
-  scInfo: {
+  scLabel: {
     fontSize: 12,
     fontWeight: '500',
   },
 
-  headerActions: {
+  actions: {
     flexDirection: 'row',
     gap: 12,
   },
 
-  batchInfo: {
+  batchText: {
     fontSize: 13,
     fontWeight: '500',
     marginBottom: 12,
   },
 
-  cardFooter: {
+  footer: {
     flexDirection: 'row',
     gap: 8,
     flexWrap: 'wrap',
   },
 
-  empty: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
+  /* FAB */
   fab: {
     position: 'absolute',
     right: 20,
@@ -619,5 +570,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
   },
 });
