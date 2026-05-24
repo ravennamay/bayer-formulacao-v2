@@ -214,14 +214,16 @@ export default function PlanilhaScreen() {
         },
       ]}
     >
-      <View style={[styles.cardHeader, { borderBottomColor: colors.border }]}>
-        <Text style={[styles.unit, { color: colors.textSecondary }]}>{item.unit} • {item.sc}</Text>
+      <View style={[styles.cardHeader, { backgroundColor: colors.surfaceElevated, borderBottomColor: colors.border }]}>
+        <Ionicons name="business-outline" size={14} color={colors.textSecondary} />
+        <Text style={[styles.headerText, { color: colors.textSecondary }]}>{item.unit} • </Text>
+        <Text style={[styles.headerText, { color: colors.success, fontWeight: '700' }]}>{item.sc}</Text>
       </View>
 
       <View style={styles.cardContent}>
-        <View style={styles.productSection}>
-          <View style={[styles.productBadge, { backgroundColor: colors.primary + '20' }]}>
-            <Text style={[styles.productAbbr, { color: colors.primary }]}>
+        <View style={styles.productRow}>
+          <View style={[styles.productBadge, { backgroundColor: colors.success }]}>
+            <Text style={[styles.productAbbr, { color: '#000' }]}>
               {item.product_abbr?.slice(0, 3).toUpperCase()}
             </Text>
           </View>
@@ -303,55 +305,58 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     marginBottom: 12,
     overflow: 'hidden',
   },
 
   cardHeader: {
-    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
     paddingVertical: 10,
     borderBottomWidth: 1,
   },
 
-  unit: {
-    fontSize: 12,
-    fontWeight: '600',
+  headerText: {
+    fontSize: 11,
+    fontWeight: '500',
   },
 
   cardContent: {
     padding: 14,
   },
 
-  productSection: {
+  productRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
   },
 
   productBadge: {
-    width: 48,
-    height: 48,
-    borderRadius: 10,
+    width: 52,
+    height: 52,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
   },
 
   productAbbr: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
   },
 
   productName: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '800',
+    marginBottom: 4,
   },
 
   batchInfo: {
     fontSize: 13,
-    marginTop: 4,
+    fontWeight: '400',
   },
 
   cardFooter: {
