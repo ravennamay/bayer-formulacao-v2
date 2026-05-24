@@ -214,6 +214,14 @@ export default function PlanilhaScreen() {
         },
       ]}
     >
+      {/* Activity Tag */}
+      <View style={[styles.activityTag, { backgroundColor: colors.background, borderColor: colors.border }]}>
+        <Ionicons name="document-outline" size={14} color={colors.textSecondary} />
+        <Text style={[styles.activityTagText, { color: colors.textSecondary }]}>
+          {item.unit} • {item.sc}
+        </Text>
+      </View>
+
       {/* Card Header with Badge and Icons */}
       <View style={styles.cardHeader}>
         <View style={styles.badgeAndTitle}>
@@ -515,6 +523,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginHorizontal: 16,
     marginBottom: 12,
+  },
+
+  activityTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 12,
+    alignSelf: 'flex-start',
+  },
+
+  activityTagText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
 
   cardHeader: {
