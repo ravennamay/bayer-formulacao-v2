@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../../src/auth';
-import { formatReportText } from '../src/reportFormatter';
+import { formatReportText } from '../../src/reportFormatter';
 import { useTheme } from '../../src/theme';
 import { formatDateLabel, ProductionItem, todayISO } from '../../src/types';
 
