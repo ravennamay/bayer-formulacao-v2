@@ -1,204 +1,600 @@
 import { Ionicons } from '@expo/vector-icons';
-import BayerLogo from '../../src/BayerLogo';
-import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Linking, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useMemo, useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
 import { api, useAuth } from '../../src/auth';
+import BayerLogo from '../../src/BayerLogo';
 import { useTheme } from '../../src/theme';
+import { ProductionItem, todayISO } from '../../src/types';
 
-type Product = { name: string; abbr: string; };
+const NAV_CARDS = [
+  {
+    id: 'planilha',
+    title: 'Planilha de Produção',
+    subtitle: 'Controle de itens, lotes e status de material',
+    icon: 'grid',
+    route: '/(tabs)/planilha',
+    accent: true,
+  },
+  {
+    id: 'report',
+    title: 'Relatório de Turno',
+    subtitle: 'Resumo formatado com status de todos os lotes',
+    icon: 'document-text',
+    route: '/(tabs)/report',
+    accent: false,
+  },
+];
 
-export default function SettingsScreen() {
+const QUICK_CARDS = [
+  {
+    id: 'guia',
+    title: 'Guia de Formulação',
+    subtitle: 'Produtos e procedimentos',
+    icon: 'book',
+    route: '/(tabs)/guide',
+  },
+  {
+    id: 'config',
+    title: 'Configurações',
+    subtitle: 'Conta e aparencia',
+    icon: 'person',
+    route: '/(tabs)/settings',
+  },
+];
+
+export default function HomeScreen() {
   const { colors, mode, toggle } = useTheme();
-  const { user, logout, isDemo } = useAuth();
-  const router = useRouter();
+  const { user, isDemo } = useAuth();
+  const [items, setItems] = useState<ProductionItem[]>([]);
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [compactView, setCompactView] = useState(false);
-
-  const loadProducts = useCallback(async () => {
+  const fetchItems = useCallback(async () => {
     if (isDemo) return;
     try {
-      const r = await api.get('/products');
-      setProducts(Array.isArray(r.data) ? r.data : []);
+      const r = await api.get('/items', { params: { date: todayISO() } });
+      setItems(Array.isArray(r.data) ? r.data : []);
     } catch {}
   }, [isDemo]);
 
-  useEffect(() => { loadProducts(); }, [loadProducts]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchItems();
+    }, [fetchItems])
+  );
 
-  const handleLogout = () => Alert.alert('Sair', 'Confirma encerrar a sessão?', [
-    { text: 'Cancelar', style: 'cancel' },
-    { text: 'Sair', style: 'destructive', onPress: () => { logout(); } },
-  ]);
+  const stats = useMemo(() => {
+    const situationCounts = {
+      Recebido: items.filter(i => i.situation === 'Recebido').length,
+      'A preparar': items.filter(i => i.situation === 'A preparar').length,
+      Preparado: items.filter(i => i.situation === 'Preparado').length,
+      'Em fábrica': items.filter(i => i.situation === 'Em fábrica').length,
+    };
 
-  const openDocs = () => Linking.openURL('https://www.bayer.com');
+    const unitCounts = items.reduce(
+      (acc, item) => {
+        acc[item.unit] = (acc[item.unit] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
 
-  const defaultProducts = [
-    { name: 'Nativo', abbr: 'NAT' }, { name: 'Verango', abbr: 'VER' },
-    { name: 'Oberon', abbr: 'OBE' }, { name: 'Fox Xpro', abbr: 'FXX' },
-    { name: 'Belt', abbr: 'BEL' }, { name: 'Sphere Max', abbr: 'SPH' },
-    { name: 'Connect', abbr: 'CON' }, { name: 'Movento', abbr: 'MOV' },
-    { name: 'Decis', abbr: 'DEC' }, { name: 'Alsystim', abbr: 'ALS' },
-    { name: 'Hybstem', abbr: 'HYB' }, { name: 'Ureia', abbr: 'URE' },
-  ];
+    return { situationCounts, unitCounts, total: items.length };
+  }, [items]);
 
-  const productList = isDemo ? defaultProducts : (products.length > 0 ? products : defaultProducts);
+  // Cores para cada situação
+  const situationColors = {
+    Recebido: 'secondary',
+    'A preparar': 'warning',
+    Preparado: 'success',
+    'Em fábrica': 'info',
+  };
+
+  // Ícones para cada situação
+  const situationIcons = {
+    Recebido: 'archive-outline',
+    'A preparar': 'time-outline',
+    Preparado: 'checkmark-done-circle-outline',
+    'Em fábrica': 'sync-outline',
+  };
+
+  const greeting = () => {
+    const h = new Date().getHours();
+    return h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+  };
+
+  const today = new Date().toLocaleDateString('pt-BR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+
+  const firstName = user?.name || 'Operador';
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={["top"]}>
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <View style={styles.headerRow}>
-          <View style={styles.bayerBadge}>
-            <BayerLogo size={24} />
+    <SafeAreaView style={[S.safe, { backgroundColor: colors.background }]} edges={['top']}>
+      <View
+        style={[S.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}
+      >
+        <View style={S.headerRow}>
+          <View style={S.headerLeft}>
+            <View style={[S.bayerCircle, { backgroundColor: '#fff', shadowColor: colors.primary }]}>
+              <BayerLogo size={20} />
+            </View>
+            <View style={S.headerInfo}>
+              <Text style={[S.greetingTxt, { color: colors.textPrimary }]}>
+                {greeting()}, {firstName}
+              </Text>
+              <Text style={[S.dateTxt, { color: colors.textSecondary }]} numberOfLines={1}>
+                {today}
+              </Text>
+            </View>
           </View>
-          <Text style={[styles.title, { color: colors.textPrimary }]}>Configurações</Text>
-          <View style={styles.gearWrap}>
-            <Ionicons name="settings-outline" size={22} color={colors.textTertiary} />
+          <View
+            style={[
+              S.modeToggle,
+              { backgroundColor: colors.background, borderColor: colors.border },
+            ]}
+          >
+            <TouchableOpacity
+              onPress={mode === 'dark' ? undefined : toggle}
+              style={
+                mode === 'dark'
+                  ? [S.modeBtn, S.modeBtnActive, { backgroundColor: colors.surface }]
+                  : S.modeBtn
+              }
+            >
+              <Ionicons
+                name="moon"
+                size={15}
+                color={mode === 'dark' ? colors.primary : colors.textTertiary}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={mode === 'light' ? undefined : toggle}
+              style={
+                mode === 'light'
+                  ? [S.modeBtn, S.modeBtnActive, { backgroundColor: colors.surface }]
+                  : S.modeBtn
+              }
+            >
+              <Ionicons
+                name="sunny"
+                size={15}
+                color={mode === 'light' ? colors.primary : colors.textTertiary}
+              />
+            </TouchableOpacity>
           </View>
         </View>
+
+        <Text style={[S.appTitle, { color: colors.textPrimary }]}>Preparação</Text>
+
+        {!isDemo && items.length > 0 && (
+          <>
+            <View style={S.sectionTitle}>
+              <Text style={[S.sectionTitleText, { color: colors.textTertiary }]}>
+                SITUAÇÃO DA PRODUÇÃO
+              </Text>
+            </View>
+
+            {/* BARRA DE PRODUÇÃO HORIZONTAL COM DIVISORES */}
+            <View
+              style={[
+                S.productionBar,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
+            >
+              {Object.entries(stats.situationCounts).map(([situation, count], idx, arr) => {
+                const colorKey = situationColors[situation] || 'primary';
+                const color = colors[colorKey];
+                const icon = situationIcons[situation] || 'cube-outline';
+                const isLast = idx === arr.length - 1;
+
+                return (
+                  <React.Fragment key={situation}>
+                    <View style={S.productionItem}>
+                      <Ionicons name={icon as any} size={22} color={color} />
+                      <Text style={[S.productionNum, { color }]}>{count}</Text>
+                      <Text style={[S.productionLbl, { color: colors.textSecondary }]}>
+                        {situation}
+                      </Text>
+                    </View>
+                    {!isLast && (
+                      <View style={[S.productionDiv, { backgroundColor: colors.border }]} />
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </View>
+          </>
+        )}
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }} keyboardShouldPersistTaps="handled">
-
-        <Section title="Conta" colors={colors}>
-          <View style={[styles.userBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 18 }}>{(user?.name || user?.email || 'U').charAt(0).toUpperCase()}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 15 }}>{user?.name || 'Usuario'}</Text>
-              <Text style={{ color: colors.textSecondary, fontSize: 13 }}>{user?.email}</Text>
-            </View>
-            <View style={[styles.roleBadge, { backgroundColor: isDemo ? colors.warningBg : colors.successBg }]}>
-              <Text style={{ color: isDemo ? colors.warning : colors.success, fontWeight: '700', fontSize: 11 }}>{isDemo ? 'DEMO' : (user?.role || 'USER').toUpperCase()}</Text>
-            </View>
+      <ScrollView
+        style={S.scroll}
+        contentContainerStyle={S.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {isDemo && (
+          <View
+            style={[
+              S.demoBanner,
+              { backgroundColor: colors.warningBg, borderColor: colors.warning + '44' },
+            ]}
+          >
+            <Ionicons name="warning-outline" size={15} color={colors.warning} />
+            <Text style={[S.demoBannerTxt, { color: colors.warning }]}>
+              Modo demo ativo. Configure o backend para dados reais.
+            </Text>
           </View>
-          {isDemo && (
-            <View style={[styles.demoNote, { backgroundColor: colors.warningBg, borderColor: colors.warning + '44' }]}>
-              <Ionicons name="warning-outline" size={14} color={colors.warning} />
-              <Text style={[styles.demoNoteText, { color: colors.warning }]}>Modo demonstração ativo. Dados não são persistidos.</Text>
-            </View>
-          )}
-        </Section>
-
-        <Section title="Aparencia" colors={colors}>
-          <TouchableOpacity onPress={toggle} style={[styles.row, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Ionicons name={mode === 'dark' ? 'moon' : 'sunny'} size={20} color={colors.primary} />
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 15 }}>Modo {mode === 'dark' ? 'Escuro' : 'Claro'}</Text>
-              <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Toque para alternar</Text>
-            </View>
-            <Ionicons name="swap-horizontal" size={18} color={colors.textTertiary} />
-          </TouchableOpacity>
-        </Section>
-
-        <Section title="Status de Produção" colors={colors}>
-          <View style={[styles.statusGrid, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: 14 }]}>
-            {[
-              { label: 'Disponivel', color: colors.success, bg: colors.successBg, icon: 'checkmark-circle' },
-              { label: 'Baixo', color: colors.warning, bg: colors.warningBg, icon: 'alert-circle' },
-              { label: 'Indisponivel', color: colors.danger, bg: colors.dangerBg, icon: 'close-circle' },
-              { label: 'Preparado', color: colors.success, bg: colors.successBg, icon: 'checkmark-done-circle' },
-              { label: 'A preparar', color: colors.warning, bg: colors.warningBg, icon: 'time-outline' },
-              { label: 'Em fabrica', color: colors.info, bg: colors.infoBg, icon: 'sync-circle' },
-            ].map((s, i, arr) => (
-              <View key={s.label} style={[styles.statusItem, i < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-                <View style={[styles.statusDot, { backgroundColor: s.bg }]}>
-                  <Ionicons name={s.icon as any} size={16} color={s.color} />
-                </View>
-                <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: '500' }}>{s.label}</Text>
-              </View>
-            ))}
-          </View>
-        </Section>
-
-        <Section title="Catalogo de Produtos" colors={colors}>
-          <View style={[styles.productList, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            {productList.map((p, i) => (
-              <View key={i} style={[styles.productRow, i < productList.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-                <Text style={{ color: colors.textPrimary, fontSize: 14, flex: 1 }}>{p.name}</Text>
-                <View style={[styles.abbrChip, { backgroundColor: colors.primary + '22' }]}>
-                  <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 12 }}>{p.abbr}</Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        </Section>
-
-        <Section title="Pesos de Referencia (Bags)" colors={colors}>
-          <View style={[styles.productList, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            {[['Verango', '400 kg/bag'], ['Ureia', '700 kg/bag'], ['Demais', 'Ver NF']].map(([name, weight], i, arr) => (
-              <View key={name} style={[styles.productRow, i < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-                <Text style={{ color: colors.textPrimary, fontSize: 14, flex: 1 }}>{name}</Text>
-                <View style={[styles.abbrChip, { backgroundColor: colors.infoBg }]}>
-                  <Text style={{ color: colors.info, fontWeight: '700', fontSize: 12 }}>{weight}</Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        </Section>
-
-                {user?.role==="admin" && (
-          <Section title="Administracao" colors={colors}>
-            <TouchableOpacity onPress={() => router.push("/admin")} style={[styles.row, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Ionicons name="shield-checkmark-outline" size={20} color={colors.primary} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: colors.textPrimary, fontWeight: "600", fontSize: 15 }}>Painel Administrativo</Text>
-                <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Gerenciar usuarios e dados</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
-            </TouchableOpacity>
-          </Section>
         )}
 
-<Section title="Links Uteis" colors={colors}>
-          <TouchableOpacity onPress={openDocs} style={[styles.row, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Ionicons name="globe-outline" size={20} color={colors.secondary} />
-            <View style={{ flex: 1 }}><Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 15 }}>Portal Bayer Agricola</Text><Text style={{ color: colors.textSecondary, fontSize: 12 }}>Informacoes tecnicas oficiais</Text></View>
-            <Ionicons name="open-outline" size={16} color={colors.textTertiary} />
-          </TouchableOpacity>
-        </Section>
+        {!isDemo && items.length > 0 && Object.keys(stats.unitCounts).length > 0 && (
+          <>
+            <View style={[S.sectionTitle]}>
+              <Text style={[S.sectionTitleText, { color: colors.textTertiary }]}>POR UNIDADE</Text>
+            </View>
+            {Object.entries(stats.unitCounts).map(([unit, count]) => (
+              <View
+                key={unit}
+                style={[
+                  S.unitCard,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                ]}
+              >
+                <View style={[S.unitIcon, { backgroundColor: colors.primary + '15' }]}>
+                  <Ionicons name="layers-outline" size={18} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[S.unitName, { color: colors.textPrimary }]}>{unit}</Text>
+                </View>
+                <Text style={[S.unitCount, { color: colors.primary }]}>{count}</Text>
+              </View>
+            ))}
+          </>
+        )}
 
-        <TouchableOpacity onPress={handleLogout} style={[styles.row, { backgroundColor: colors.dangerBg, borderColor: colors.danger + '55' }]}>
-          <Ionicons name="log-out-outline" size={20} color={colors.danger} />
-          <Text style={{ color: colors.danger, fontWeight: '700', fontSize: 15 }}>Sair da conta</Text>
-        </TouchableOpacity>
+        <Text style={[S.sectionLabel, { color: colors.textTertiary }]}>ACESSO RAPIDO</Text>
 
-        <Text style={{ color: colors.textTertiary, fontSize: 11, textAlign: 'center', marginTop: 8 }}>Bayer Fito Formulação · v2.0.0</Text>
+        {NAV_CARDS.map(card =>
+          card.accent ? (
+            <TouchableOpacity
+              key={card.id}
+              onPress={() => router.navigate(card.route as any)}
+              activeOpacity={0.82}
+              style={S.accentWrap}
+            >
+              <LinearGradient
+                colors={['#0FA4AF', '#007B82', '#005F73']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={S.accentCard}
+              >
+                <View style={S.accentIconBg}>
+                  <Ionicons name={card.icon as any} size={26} color="#fff" />
+                </View>
+                <View style={S.cardBody}>
+                  <Text style={S.accentTitle}>{card.title}</Text>
+                  <Text style={S.accentSub}>{card.subtitle}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.55)" />
+              </LinearGradient>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              key={card.id}
+              onPress={() => router.navigate(card.route as any)}
+              activeOpacity={0.82}
+              style={[S.darkCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            >
+              <View style={[S.darkIconBg, { backgroundColor: colors.primary + '18' }]}>
+                <Ionicons name={card.icon as any} size={26} color={colors.primary} />
+              </View>
+              <View style={S.cardBody}>
+                <Text style={[S.darkTitle, { color: colors.textPrimary }]}>{card.title}</Text>
+                <Text style={[S.darkSub, { color: colors.textSecondary }]}>{card.subtitle}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+            </TouchableOpacity>
+          )
+        )}
+
+        <Text style={[S.sectionLabel, { color: colors.textTertiary }]}>FERRAMENTAS</Text>
+
+        <View style={S.smallRow}>
+          {QUICK_CARDS.map(card => (
+            <TouchableOpacity
+              key={card.id}
+              onPress={() => router.navigate(card.route as any)}
+              activeOpacity={0.82}
+              style={[S.smallCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            >
+              <View style={[S.smallIconBg, { backgroundColor: colors.primary + '15' }]}>
+                <Ionicons name={card.icon as any} size={22} color={colors.primary} />
+              </View>
+              <Text style={[S.smallTitle, { color: colors.textPrimary }]}>{card.title}</Text>
+              <Text style={[S.smallSub, { color: colors.textSecondary }]}>{card.subtitle}</Text>
+              <View style={S.smallArrowWrap}>
+                <Ionicons name="chevron-forward" size={15} color={colors.textTertiary} />
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={[S.version, { color: colors.textTertiary }]}>Bayer Preparação · v2.0</Text>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function Section({ title, children, colors }: { title: string; children: React.ReactNode; colors: any }) {
-  return (
-    <View style={{ gap: 8 }}>
-      <Text style={{ color: colors.textTertiary, fontWeight: '600', fontSize: 11, letterSpacing: 0.8, textTransform: 'uppercase' }}>{title}</Text>
-      {children}
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  header: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 14, borderBottomWidth: 1 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  bayerBadge: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', elevation: 3 },
-  gearWrap: { marginLeft: 'auto' },
-  title: { fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
-  userBox: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14, borderWidth: 1 },
-  avatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  roleBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  demoNote: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, borderRadius: 10, borderWidth: 1 },
-  demoNoteText: { fontSize: 12, flex: 1 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 12, borderWidth: 1 },
-  statusGrid: { overflow: 'hidden' },
-  statusItem: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
-  statusDot: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  productList: { borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
-  productRow: { flexDirection: 'row', alignItems: 'center', padding: 12 },
-  abbrChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+const S = StyleSheet.create({
+  safe: {
+    flex: 1,
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 18,
+    borderBottomWidth: 1,
+    gap: 4,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  bayerCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  headerInfo: {
+    flex: 1,
+    gap: 1,
+  },
+  greetingTxt: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  dateTxt: {
+    fontSize: 11,
+    textTransform: 'capitalize',
+  },
+  modeToggle: {
+    flexDirection: 'row',
+    borderRadius: 10,
+    padding: 3,
+    borderWidth: 1,
+    gap: 2,
+  },
+  modeBtn: {
+    width: 30,
+    height: 28,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modeBtnActive: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  appTitle: {
+    fontSize: 32,
+    fontWeight: '800',
+    letterSpacing: -0.8,
+    marginTop: 10,
+  },
+  // BARRA DE PRODUÇÃO HORIZONTAL (NOVO ESTILO)
+  productionBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingVertical: 16,
+    marginTop: 14,
+  },
+  productionItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 6,
+  },
+  productionNum: {
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  productionLbl: {
+    fontSize: 10,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  productionDiv: {
+    width: 1,
+    height: 50,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 36,
+    gap: 12,
+  },
+  demoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  demoBannerTxt: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '500',
+    lineHeight: 17,
+  },
+  sectionTitle: {
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  sectionTitleText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  unitCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  unitIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unitName: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  unitCount: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
+    marginTop: 4,
+    marginBottom: -2,
+  },
+  accentWrap: {
+    borderRadius: 22,
+    overflow: 'hidden',
+    shadowColor: '#0A9396',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.28,
+    shadowRadius: 14,
+    elevation: 8,
+  },
+  accentCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    padding: 22,
+  },
+  accentIconBg: {
+    width: 52,
+    height: 52,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardBody: {
+    flex: 1,
+    gap: 3,
+  },
+  accentTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  accentSub: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.72)',
+    lineHeight: 17,
+  },
+  darkCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    padding: 20,
+    borderRadius: 22,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  darkIconBg: {
+    width: 52,
+    height: 52,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  darkTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  darkSub: {
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 2,
+  },
+  smallRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  smallCard: {
+    flex: 1,
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    gap: 8,
+  },
+  smallIconBg: {
+    width: 44,
+    height: 44,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  smallTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  smallSub: {
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  smallArrowWrap: {
+    alignSelf: 'flex-end',
+    marginTop: 4,
+  },
+  version: {
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: 8,
+  },
 });
