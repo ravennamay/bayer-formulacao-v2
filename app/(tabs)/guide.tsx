@@ -312,12 +312,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
     paddingHorizontal: 16,
+    paddingVertical: 12,
+    justifyContent: "center",
+    flexWrap: "wrap",
   },
 
   tab: {
     flex: 1,
+    minWidth: 90,
     flexDirection: "row",
     justifyContent: "center",
+    alignItems: "center",
     gap: 6,
     padding: 10,
     borderRadius: 999,
