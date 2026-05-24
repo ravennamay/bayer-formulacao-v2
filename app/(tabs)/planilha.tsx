@@ -225,6 +225,80 @@ export default function PlanilhaScreen() {
     </View>
   );
 
+  const renderHeader = () => (
+    <View>
+      {/* Date Selector */}
+      <View style={[styles.dateContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <TouchableOpacity style={styles.dateNavButton}>
+          <Ionicons name="chevron-back" size={20} color={colors.primary} />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={[styles.dateSelector, { borderColor: colors.primary }]}>
+          <Ionicons name="calendar" size={18} color={colors.primary} style={{ marginRight: 8 }} />
+          <Text style={[styles.dateText, { color: colors.textPrimary }]}>
+            {formatDateLabel(date)}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.dateNavButton}>
+          <Ionicons name="chevron-forward" size={20} color={colors.primary} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Stats Card */}
+      <View style={[styles.statsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={styles.statsHeader}>
+          <View style={styles.statsTitleBlock}>
+            <View style={[styles.statusBadge, { backgroundColor: colors.primary }]}>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: '#fff' }}>
+                {String(stats.total).padStart(2, '0')}
+              </Text>
+            </View>
+            <Text style={[styles.statsTitle, { color: colors.textPrimary }]}>
+              Total
+            </Text>
+          </View>
+          <TouchableOpacity style={[styles.exportButton, { backgroundColor: colors.primary }]}>
+            <Ionicons name="download" size={18} color="#fff" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.statsGrid}>
+          <View style={styles.statItem}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              A Preparar
+            </Text>
+            <Text style={[styles.statValue, { color: colors.textPrimary }]}>
+              {String(stats.aPreparar).padStart(2, '0')}
+            </Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.statItem}>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+              Preparado
+            </Text>
+            <Text style={[styles.statValue, { color: colors.textPrimary }]}>
+              {String(stats.preparado).padStart(2, '0')}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Search and Filter */}
+      <View style={styles.headerContent}>
+        <TextInput
+          style={[styles.search, { backgroundColor: colors.surface, color: colors.textPrimary, borderColor: colors.border }]}
+          placeholder="Buscar produto..."
+          placeholderTextColor={colors.textSecondary}
+          value={search}
+          onChangeText={setSearch}
+        />
+      </View>
+    </View>
+  );
+
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
       <ViewShot
@@ -245,6 +319,7 @@ export default function PlanilhaScreen() {
             data={filtered}
             keyExtractor={item => item.id}
             renderItem={renderItem}
+            ListHeaderComponent={renderHeader}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -253,9 +328,9 @@ export default function PlanilhaScreen() {
               />
             }
             contentContainerStyle={{
-              padding: 16,
               paddingBottom: 120,
             }}
+            scrollIndicatorInsets={{ right: 1 }}
           />
         )}
       </ViewShot>
@@ -286,10 +361,131 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
+  dateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+
+  dateNavButton: {
+    padding: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  dateSelector: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1.5,
+  },
+
+  dateText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  statsCard: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+
+  statsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+
+  statsTitleBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+
+  statusBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  statsTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+
+  exportButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  statsGrid: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+  },
+
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+  },
+
+  statLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+
+  statValue: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+
+  divider: {
+    width: 1,
+    height: 30,
+    backgroundColor: '#e0e0e0',
+  },
+
+  headerContent: {
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+
+  search: {
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    borderWidth: 1,
+  },
+
   card: {
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
+    marginHorizontal: 16,
     marginBottom: 12,
     gap: 12,
   },
