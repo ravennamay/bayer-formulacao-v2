@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, useAuth } from '../../src/auth';
 import BayerLogo from '../../src/BayerLogo';
@@ -10,13 +10,39 @@ import { useTheme } from '../../src/theme';
 import { ProductionItem, todayISO } from '../../src/types';
 
 const NAV_CARDS = [
-  { id: 'planilha', title: 'Planilha de Produção', subtitle: 'Controle de itens, lotes e status de material', icon: 'grid', route: '/(tabs)/planilha', accent: true },
-  { id: 'report', title: 'Relatório de Turno', subtitle: 'Resumo formatado com status de todos os lotes', icon: 'document-text', route: '/(tabs)/report', accent: false },
+  {
+    id: 'planilha',
+    title: 'Planilha de Produção',
+    subtitle: 'Controle de itens, lotes e status de material',
+    icon: 'grid',
+    route: '/(tabs)/planilha',
+    accent: true,
+  },
+  {
+    id: 'report',
+    title: 'Relatório de Turno',
+    subtitle: 'Resumo formatado com status de todos os lotes',
+    icon: 'document-text',
+    route: '/(tabs)/report',
+    accent: false,
+  },
 ];
 
 const QUICK_CARDS = [
-  { id: 'guia', title: 'Guia de Formulação', subtitle: 'Produtos e procedimentos', icon: 'book', route: '/(tabs)/guide' },
-  { id: 'config', title: 'Configurações', subtitle: 'Conta e aparencia', icon: 'person', route: '/(tabs)/settings' },
+  {
+    id: 'guia',
+    title: 'Guia de Formulação',
+    subtitle: 'Produtos e procedimentos',
+    icon: 'book',
+    route: '/(tabs)/guide',
+  },
+  {
+    id: 'config',
+    title: 'Configurações',
+    subtitle: 'Conta e aparencia',
+    icon: 'person',
+    route: '/(tabs)/settings',
+  },
 ];
 
 export default function HomeScreen() {
@@ -32,13 +58,46 @@ export default function HomeScreen() {
     } catch {}
   }, [isDemo]);
 
-  useFocusEffect(useCallback(() => { fetchItems(); }, [fetchItems]));
+  useFocusEffect(
+    useCallback(() => {
+      fetchItems();
+    }, [fetchItems])
+  );
 
-  const stats = useMemo(() => ({
-    total: items.length,
-    disp: items.filter(i => i.material_status === 'Disponivel').length,
-    indisp: items.filter(i => i.material_status === 'Indisponivel').length,
-  }), [items]);
+  const stats = useMemo(() => {
+    const situationCounts = {
+      Recebido: items.filter(i => i.situation === 'Recebido').length,
+      'A preparar': items.filter(i => i.situation === 'A preparar').length,
+      Preparado: items.filter(i => i.situation === 'Preparado').length,
+      'Em fábrica': items.filter(i => i.situation === 'Em fábrica').length,
+    };
+
+    const unitCounts = items.reduce(
+      (acc, item) => {
+        acc[item.unit] = (acc[item.unit] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
+
+    return { situationCounts, unitCounts, total: items.length };
+  }, [items]);
+
+  // Cores para cada situação
+  const situationColors = {
+    Recebido: 'secondary',
+    'A preparar': 'warning',
+    Preparado: 'success',
+    'Em fábrica': 'info',
+  };
+
+  // Ícones para cada situação
+  const situationIcons = {
+    Recebido: 'archive-outline',
+    'A preparar': 'time-outline',
+    Preparado: 'checkmark-done-circle-outline',
+    'Em fábrica': 'sync-outline',
+  };
 
   const greeting = () => {
     const h = new Date().getHours();
@@ -46,104 +105,200 @@ export default function HomeScreen() {
   };
 
   const today = new Date().toLocaleDateString('pt-BR', {
-    weekday: 'long', day: 'numeric', month: 'long',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
   });
 
   const firstName = user?.name || 'Operador';
 
   return (
     <SafeAreaView style={[S.safe, { backgroundColor: colors.background }]} edges={['top']}>
-
-      <View style={[S.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View
+        style={[S.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}
+      >
         <View style={S.headerRow}>
           <View style={S.headerLeft}>
             <View style={[S.bayerCircle, { backgroundColor: '#fff', shadowColor: colors.primary }]}>
               <BayerLogo size={20} />
             </View>
             <View style={S.headerInfo}>
-              <Text style={[S.greetingTxt, { color: colors.textPrimary }]}>{greeting()}, {firstName}</Text>
-              <Text style={[S.dateTxt, { color: colors.textSecondary }]} numberOfLines={1}>{today}</Text>
+              <Text style={[S.greetingTxt, { color: colors.textPrimary }]}>
+                {greeting()}, {firstName}
+              </Text>
+              <Text style={[S.dateTxt, { color: colors.textSecondary }]} numberOfLines={1}>
+                {today}
+              </Text>
             </View>
           </View>
-          <View style={[S.modeToggle, { backgroundColor: colors.background, borderColor: colors.border }]}>
+          <View
+            style={[
+              S.modeToggle,
+              { backgroundColor: colors.background, borderColor: colors.border },
+            ]}
+          >
             <TouchableOpacity
               onPress={mode === 'dark' ? undefined : toggle}
-              style={mode === 'dark' ? [S.modeBtn, S.modeBtnActive, { backgroundColor: colors.surface }] : S.modeBtn}
+              style={
+                mode === 'dark'
+                  ? [S.modeBtn, S.modeBtnActive, { backgroundColor: colors.surface }]
+                  : S.modeBtn
+              }
             >
-              <Ionicons name="moon" size={15} color={mode === 'dark' ? colors.primary : colors.textTertiary} />
+              <Ionicons
+                name="moon"
+                size={15}
+                color={mode === 'dark' ? colors.primary : colors.textTertiary}
+              />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={mode === 'light' ? undefined : toggle}
-              style={mode === 'light' ? [S.modeBtn, S.modeBtnActive, { backgroundColor: colors.surface }] : S.modeBtn}
+              style={
+                mode === 'light'
+                  ? [S.modeBtn, S.modeBtnActive, { backgroundColor: colors.surface }]
+                  : S.modeBtn
+              }
             >
-              <Ionicons name="sunny" size={15} color={mode === 'light' ? colors.primary : colors.textTertiary} />
+              <Ionicons
+                name="sunny"
+                size={15}
+                color={mode === 'light' ? colors.primary : colors.textTertiary}
+              />
             </TouchableOpacity>
           </View>
         </View>
 
-        <Text style={[S.appTitle, { color: colors.textPrimary }]}>Fito Formulação</Text>
+        <Text style={[S.appTitle, { color: colors.textPrimary }]}>Preparação</Text>
 
         {!isDemo && items.length > 0 && (
-          <View style={[S.statsBar, { backgroundColor: colors.background, borderColor: colors.border }]}>
-            <View style={S.statItem}>
-              <Text style={[S.statNum, { color: colors.textPrimary }]}>{stats.total}</Text>
-              <Text style={[S.statLbl, { color: colors.textSecondary }]}>Total hoje</Text>
+          <>
+            <View style={S.sectionTitle}>
+              <Text style={[S.sectionTitleText, { color: colors.textTertiary }]}>
+                SITUAÇÃO DA PRODUÇÃO
+              </Text>
             </View>
-            <View style={[S.statDiv, { backgroundColor: colors.border }]} />
-            <View style={S.statItem}>
-              <Text style={[S.statNum, { color: colors.success }]}>{stats.disp}</Text>
-              <Text style={[S.statLbl, { color: colors.textSecondary }]}>Disponiveis</Text>
+
+            {/* BARRA DE PRODUÇÃO HORIZONTAL COM DIVISORES */}
+            <View
+              style={[
+                S.productionBar,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
+            >
+              {Object.entries(stats.situationCounts).map(([situation, count], idx, arr) => {
+                const colorKey = situationColors[situation] || 'primary';
+                const color = colors[colorKey];
+                const icon = situationIcons[situation] || 'cube-outline';
+                const isLast = idx === arr.length - 1;
+
+                return (
+                  <React.Fragment key={situation}>
+                    <View style={S.productionItem}>
+                      <Ionicons name={icon as any} size={22} color={color} />
+                      <Text style={[S.productionNum, { color }]}>{count}</Text>
+                      <Text style={[S.productionLbl, { color: colors.textSecondary }]}>
+                        {situation}
+                      </Text>
+                    </View>
+                    {!isLast && (
+                      <View style={[S.productionDiv, { backgroundColor: colors.border }]} />
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </View>
-            <View style={[S.statDiv, { backgroundColor: colors.border }]} />
-            <View style={S.statItem}>
-              <Text style={[S.statNum, { color: colors.danger }]}>{stats.indisp}</Text>
-              <Text style={[S.statLbl, { color: colors.textSecondary }]}>Indisponiveis</Text>
-            </View>
-          </View>
+          </>
         )}
       </View>
 
-      <ScrollView style={S.scroll} contentContainerStyle={S.scrollContent} showsVerticalScrollIndicator={false}>
-
+      <ScrollView
+        style={S.scroll}
+        contentContainerStyle={S.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {isDemo && (
-          <View style={[S.demoBanner, { backgroundColor: colors.warningBg, borderColor: colors.warning + '44' }]}>
+          <View
+            style={[
+              S.demoBanner,
+              { backgroundColor: colors.warningBg, borderColor: colors.warning + '44' },
+            ]}
+          >
             <Ionicons name="warning-outline" size={15} color={colors.warning} />
-            <Text style={[S.demoBannerTxt, { color: colors.warning }]}>Modo demo ativo. Configure o backend para dados reais.</Text>
+            <Text style={[S.demoBannerTxt, { color: colors.warning }]}>
+              Modo demo ativo. Configure o backend para dados reais.
+            </Text>
           </View>
+        )}
+
+        {!isDemo && items.length > 0 && Object.keys(stats.unitCounts).length > 0 && (
+          <>
+            <View style={[S.sectionTitle]}>
+              <Text style={[S.sectionTitleText, { color: colors.textTertiary }]}>POR UNIDADE</Text>
+            </View>
+            {Object.entries(stats.unitCounts).map(([unit, count]) => (
+              <View
+                key={unit}
+                style={[
+                  S.unitCard,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                ]}
+              >
+                <View style={[S.unitIcon, { backgroundColor: colors.primary + '15' }]}>
+                  <Ionicons name="layers-outline" size={18} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[S.unitName, { color: colors.textPrimary }]}>{unit}</Text>
+                </View>
+                <Text style={[S.unitCount, { color: colors.primary }]}>{count}</Text>
+              </View>
+            ))}
+          </>
         )}
 
         <Text style={[S.sectionLabel, { color: colors.textTertiary }]}>ACESSO RAPIDO</Text>
 
-        {NAV_CARDS.map(card => card.accent ? (
-          <TouchableOpacity key={card.id} onPress={() => router.navigate(card.route as any)} activeOpacity={0.82} style={S.accentWrap}>
-            <LinearGradient colors={['#0FA4AF', '#007B82', '#005F73']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={S.accentCard}>
-              <View style={S.accentIconBg}>
-                <Ionicons name={card.icon as any} size={26} color="#fff" />
+        {NAV_CARDS.map(card =>
+          card.accent ? (
+            <TouchableOpacity
+              key={card.id}
+              onPress={() => router.navigate(card.route as any)}
+              activeOpacity={0.82}
+              style={S.accentWrap}
+            >
+              <LinearGradient
+                colors={['#0FA4AF', '#007B82', '#005F73']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={S.accentCard}
+              >
+                <View style={S.accentIconBg}>
+                  <Ionicons name={card.icon as any} size={26} color="#fff" />
+                </View>
+                <View style={S.cardBody}>
+                  <Text style={S.accentTitle}>{card.title}</Text>
+                  <Text style={S.accentSub}>{card.subtitle}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.55)" />
+              </LinearGradient>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              key={card.id}
+              onPress={() => router.navigate(card.route as any)}
+              activeOpacity={0.82}
+              style={[S.darkCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            >
+              <View style={[S.darkIconBg, { backgroundColor: colors.primary + '18' }]}>
+                <Ionicons name={card.icon as any} size={26} color={colors.primary} />
               </View>
               <View style={S.cardBody}>
-                <Text style={S.accentTitle}>{card.title}</Text>
-                <Text style={S.accentSub}>{card.subtitle}</Text>
+                <Text style={[S.darkTitle, { color: colors.textPrimary }]}>{card.title}</Text>
+                <Text style={[S.darkSub, { color: colors.textSecondary }]}>{card.subtitle}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.55)" />
-            </LinearGradient>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            key={card.id}
-            onPress={() => router.navigate(card.route as any)}
-            activeOpacity={0.82}
-            style={[S.darkCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-          >
-            <View style={[S.darkIconBg, { backgroundColor: colors.primary + '18' }]}>
-              <Ionicons name={card.icon as any} size={26} color={colors.primary} />
-            </View>
-            <View style={S.cardBody}>
-              <Text style={[S.darkTitle, { color: colors.textPrimary }]}>{card.title}</Text>
-              <Text style={[S.darkSub, { color: colors.textSecondary }]}>{card.subtitle}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-          </TouchableOpacity>
-        ))}
+              <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+            </TouchableOpacity>
+          )
+        )}
 
         <Text style={[S.sectionLabel, { color: colors.textTertiary }]}>FERRAMENTAS</Text>
 
@@ -167,7 +322,7 @@ export default function HomeScreen() {
           ))}
         </View>
 
-        <Text style={[S.version, { color: colors.textTertiary }]}>Bayer Fito Formulação · v2.0</Text>
+        <Text style={[S.version, { color: colors.textTertiary }]}>Bayer Preparação · v2.0</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -246,31 +401,33 @@ const S = StyleSheet.create({
     letterSpacing: -0.8,
     marginTop: 10,
   },
-  statsBar: {
+  // BARRA DE PRODUÇÃO HORIZONTAL (NOVO ESTILO)
+  productionBar: {
     flexDirection: 'row',
-    borderRadius: 14,
+    justifyContent: 'space-around',
+    alignItems: 'center',
     borderWidth: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 6,
+    borderRadius: 14,
+    paddingVertical: 16,
     marginTop: 14,
   },
-  statItem: {
+  productionItem: {
     flex: 1,
     alignItems: 'center',
-    gap: 2,
+    gap: 6,
   },
-  statNum: {
-    fontSize: 20,
+  productionNum: {
+    fontSize: 22,
     fontWeight: '800',
   },
-  statLbl: {
+  productionLbl: {
     fontSize: 10,
-    fontWeight: '500',
+    fontWeight: '600',
+    textTransform: 'uppercase',
   },
-  statDiv: {
+  productionDiv: {
     width: 1,
-    height: 28,
-    alignSelf: 'center',
+    height: 50,
   },
   scroll: {
     flex: 1,
@@ -293,6 +450,39 @@ const S = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     lineHeight: 17,
+  },
+  sectionTitle: {
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  sectionTitleText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  unitCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  unitIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unitName: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  unitCount: {
+    fontSize: 16,
+    fontWeight: '800',
   },
   sectionLabel: {
     fontSize: 11,
