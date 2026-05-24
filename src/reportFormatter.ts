@@ -23,12 +23,14 @@ export const formatReportText = (items: ProductionItem[], extraObs?: string): st
     grouped[item.unit][item.sc].push(item);
   });
 
+  const currentYear = String(new Date().getFullYear()).slice(-2);
+
   let text = '*Bom dia, segue a situação dos materiais para o próximo turno:*\n\n';
 
   const units = Object.keys(grouped).sort();
 
   units.forEach((unit, unitIndex) => {
-    text += `> ${unit}\n\n`;
+    text += `> ${unit.toUpperCase()}\n\n`;
 
     const scs = Object.keys(grouped[unit]).sort();
 
@@ -39,7 +41,7 @@ export const formatReportText = (items: ProductionItem[], extraObs?: string): st
       text += `*${sc} – ${product}*\n\n`;
 
       scItems.forEach(item => {
-        text += `• Lote ${item.batch} - ${item.situation}\n\n`;
+        text += `• Lote ${item.batch}/${currentYear} - ${item.situation}\n\n`;
       });
     });
 
