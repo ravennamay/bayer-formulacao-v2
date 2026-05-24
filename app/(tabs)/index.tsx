@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, useAuth } from '../../src/auth';
 import BayerLogo from '../../src/BayerLogo';
@@ -34,11 +34,21 @@ export default function HomeScreen() {
 
   useFocusEffect(useCallback(() => { fetchItems(); }, [fetchItems]));
 
-  const stats = useMemo(() => ({
-    total: items.length,
-    disp: items.filter(i => i.material_status === 'Disponivel').length,
-    indisp: items.filter(i => i.material_status === 'Indisponivel').length,
-  }), [items]);
+  const stats = useMemo(() => {
+    const situationCounts = {
+      'Recebido': items.filter(i => i.situation === 'Recebido').length,
+      'A preparar': items.filter(i => i.situation === 'A preparar').length,
+      'Preparado': items.filter(i => i.situation === 'Preparado').length,
+      'Em fábrica': items.filter(i => i.situation === 'Em fábrica').length,
+    };
+
+    const unitCounts = items.reduce((acc, item) => {
+      acc[item.unit] = (acc[item.unit] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return { situationCounts, unitCounts, total: items.length };
+  }, [items]);
 
   const greeting = () => {
     const h = new Date().getHours();
@@ -81,25 +91,23 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <Text style={[S.appTitle, { color: colors.textPrimary }]}>Fito Formulação</Text>
+        <Text style={[S.appTitle, { color: colors.textPrimary }]}>Preparação</Text>
 
         {!isDemo && items.length > 0 && (
-          <View style={[S.statsBar, { backgroundColor: colors.background, borderColor: colors.border }]}>
-            <View style={S.statItem}>
-              <Text style={[S.statNum, { color: colors.textPrimary }]}>{stats.total}</Text>
-              <Text style={[S.statLbl, { color: colors.textSecondary }]}>Total hoje</Text>
+          <>
+            <View style={S.sectionTitle}>
+              <Text style={[S.sectionTitleText, { color: colors.textTertiary }]}>SITUAÇÃO DA PRODUÇÃO</Text>
             </View>
-            <View style={[S.statDiv, { backgroundColor: colors.border }]} />
-            <View style={S.statItem}>
-              <Text style={[S.statNum, { color: colors.success }]}>{stats.disp}</Text>
-              <Text style={[S.statLbl, { color: colors.textSecondary }]}>Disponiveis</Text>
+            <View style={[S.statsBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              {Object.entries(stats.situationCounts).map(([situation, count], idx) => (
+                <View key={situation} style={{ flex: 1, alignItems: 'center' }}>
+                  <Text style={[S.statNum, { color: colors.primary, fontSize: 18 }]}>{count}</Text>
+                  <Text style={[S.statLbl, { color: colors.textSecondary, fontSize: 10 }]} numberOfLines={1}>{situation}</Text>
+                  {idx < 3 && <View style={[S.statDiv, { backgroundColor: colors.border }]} />}
+                </View>
+              ))}
             </View>
-            <View style={[S.statDiv, { backgroundColor: colors.border }]} />
-            <View style={S.statItem}>
-              <Text style={[S.statNum, { color: colors.danger }]}>{stats.indisp}</Text>
-              <Text style={[S.statLbl, { color: colors.textSecondary }]}>Indisponiveis</Text>
-            </View>
-          </View>
+          </>
         )}
       </View>
 
@@ -110,6 +118,25 @@ export default function HomeScreen() {
             <Ionicons name="warning-outline" size={15} color={colors.warning} />
             <Text style={[S.demoBannerTxt, { color: colors.warning }]}>Modo demo ativo. Configure o backend para dados reais.</Text>
           </View>
+        )}
+
+        {!isDemo && items.length > 0 && Object.keys(stats.unitCounts).length > 0 && (
+          <>
+            <View style={[S.sectionTitle]}>
+              <Text style={[S.sectionTitleText, { color: colors.textTertiary }]}>POR UNIDADE</Text>
+            </View>
+            {Object.entries(stats.unitCounts).map(([unit, count]) => (
+              <View key={unit} style={[S.unitCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <View style={[S.unitIcon, { backgroundColor: colors.primary + '15' }]}>
+                  <Ionicons name="layers-outline" size={18} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[S.unitName, { color: colors.textPrimary }]}>{unit}</Text>
+                </View>
+                <Text style={[S.unitCount, { color: colors.primary }]}>{count}</Text>
+              </View>
+            ))}
+          </>
         )}
 
         <Text style={[S.sectionLabel, { color: colors.textTertiary }]}>ACESSO RAPIDO</Text>
@@ -167,7 +194,7 @@ export default function HomeScreen() {
           ))}
         </View>
 
-        <Text style={[S.version, { color: colors.textTertiary }]}>Bayer Fito Formulação · v2.0</Text>
+        <Text style={[S.version, { color: colors.textTertiary }]}>Bayer Preparação · v2.0</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -293,6 +320,39 @@ const S = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     lineHeight: 17,
+  },
+  sectionTitle: {
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  sectionTitleText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  unitCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  unitIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unitName: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  unitCount: {
+    fontSize: 16,
+    fontWeight: '800',
   },
   sectionLabel: {
     fontSize: 11,
