@@ -1,34 +1,37 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  FlatList,
-  RefreshControl,
   ActivityIndicator,
   Alert,
-  ScrollView,
+  Dimensions,
+  FlatList,
   Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 
 import ViewShot from 'react-native-view-shot';
 
-import { useTheme } from '../../src/theme';
-import { useAuth, api } from '../../src/auth';
-import StatusPill from '../../src/StatusPill';
+import { api, useAuth } from '../../src/auth';
 import ItemFormModal from '../../src/ItemFormModal';
+import StatusPill from '../../src/StatusPill';
+import { useTheme } from '../../src/theme';
 
-import { ProductionItem, todayISO, formatDateLabel, formatBags, SITUATIONS } from '../../src/types';
+import { formatDateLabel, ProductionItem, SITUATIONS, todayISO } from '../../src/types';
+
+const { width } = Dimensions.get('window');
 
 const buildLast14Days = (): string[] => {
   const out: string[] = [];
@@ -204,88 +207,186 @@ export default function PlanilhaScreen() {
     }
   };
 
-  const StatCard = ({ label, value, icon, color }: { label: string; value: number; icon: string; color: string }) => (
-    <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <View style={[styles.statIconBg, { backgroundColor: color + '22' }]}>
-        <Ionicons name={icon as any} size={20} color={color} />
-      </View>
-      <Text style={[styles.statValue, { color }]}>{value}</Text>
-      <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{label}</Text>
-    </View>
-  );
+  const getProductColor = (product: string): string => {
+    const productColors: { [key: string]: string } = {
+      'FOX XPRO': '#00BCFF',
+      NATIVO: '#89D329',
+      'FOX PRO': '#00BCFF',
+      CURBIX: '#EC4899',
+      CONNECT: '#F59E0B',
+      BULLDOCK: '#8B5CF6',
+      ALSYSTIN: '#10B981',
+      OBERON: '#06B6D4',
+      'PREMIER PLUS': '#F97316',
+      PROVADO: '#EF4444',
+      'SPHERE MAX': '#6366F1',
+      FINISH: '#A78BFA',
+      SOBERAN: '#14B8A6',
+    };
+    return productColors[product] || colors.primary;
+  };
 
-  const renderItem = ({ item }: { item: ProductionItem }) => (
-    <View
-      style={[
-        styles.card,
-        {
-          backgroundColor: colors.surface,
-          borderColor: colors.border,
-        },
-      ]}
-    >
-      <View style={[styles.cardHeader, { backgroundColor: colors.surfaceElevated, borderBottomColor: colors.border }]}>
-        <Ionicons name="business-outline" size={14} color={colors.textSecondary} />
-        <Text style={[styles.headerText, { color: colors.textSecondary }]}>{item.unit} • </Text>
-        <Text style={[styles.headerText, { color: colors.success, fontWeight: '700' }]}>{item.sc}</Text>
-      </View>
+  const renderItem = ({ item }: { item: ProductionItem }) => {
+    const productColor = getProductColor(item.product);
 
-      <View style={styles.cardContent}>
-        <View style={styles.productRow}>
-          <View style={[styles.productBadge, { backgroundColor: colors.success }]}>
-            <Text style={[styles.productAbbr, { color: '#000' }]}>
-              {item.product_abbr?.slice(0, 3).toUpperCase()}
-            </Text>
+    return (
+      <TouchableOpacity
+        onPress={() => {
+          setEditing(item);
+          setFormVisible(true);
+        }}
+        activeOpacity={0.6}
+      >
+        <View
+          style={[
+            styles.modernCard,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          {/* BADGE COLOR HEADER */}
+          <View style={[styles.cardHeaderBar, { backgroundColor: productColor }]} />
+
+          {/* MAIN CONTENT */}
+          <View style={styles.cardMainContent}>
+            {/* PRODUCT NAME WITH COLOR INDICATOR */}
+            <View style={styles.productHeader}>
+              <View
+                style={[
+                  styles.productBadge,
+                  { backgroundColor: productColor + '20', borderColor: productColor },
+                ]}
+              >
+                <Text style={[styles.productAbbr, { color: productColor }]}>
+                  {item.product_abbr || item.product.substring(0, 3).toUpperCase()}
+                </Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.productName, { color: colors.textPrimary }]}>
+                  {item.product}
+                </Text>
+                <Text style={[styles.batchInfo, { color: colors.textSecondary }]}>
+                  Lote {item.batch}
+                </Text>
+              </View>
+            </View>
+
+            {/* SECONDARY INFO */}
+            <View style={styles.infoRow}>
+              <View style={styles.infoPair}>
+                <Text style={[styles.infoLabel, { color: colors.textTertiary }]}>SC</Text>
+                <Text style={[styles.infoValue, { color: colors.textPrimary }]}>{item.sc}</Text>
+              </View>
+              <View style={styles.infoPair}>
+                <Text style={[styles.infoLabel, { color: colors.textTertiary }]}>Unidade</Text>
+                <Text style={[styles.infoValue, { color: colors.textPrimary }]}>{item.unit}</Text>
+              </View>
+            </View>
+
+            {/* STATUS ROW */}
+            <View style={styles.statusRow}>
+              <StatusPill label={item.situation} />
+              {item.material_status && <StatusPill label={item.material_status} />}
+            </View>
+
+            {/* OBSERVATION IF EXISTS */}
+            {item.observation && (
+              <Text style={[styles.observation, { color: colors.textSecondary }]}>
+                💬 {item.observation}
+              </Text>
+            )}
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.productName, { color: colors.textPrimary }]}>{item.product}</Text>
-            <Text style={[styles.batchInfo, { color: colors.textSecondary }]}>
-              Lote {item.batch} • {item.quantity ? `${item.quantity} ${item.quantity_unit}` : 'N/A'}
-            </Text>
-          </View>
+
+          {/* ACTION BUTTON */}
+          <TouchableOpacity
+            onPress={() => handleDelete(item.id)}
+            style={[styles.deleteBtn, { backgroundColor: colors.danger + '15' }]}
+          >
+            <Ionicons name="trash-outline" size={18} color={colors.danger} />
+          </TouchableOpacity>
         </View>
-      </View>
+      </TouchableOpacity>
+    );
+  };
 
-      <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
-        <StatusPill label={item.situation} />
-        <StatusPill label={item.material_status} />
-      </View>
-    </View>
-  );
-
-  const listHeader = () => (
-    <View style={styles.headerContainer}>
-      <View style={styles.statsGrid}>
-        <StatCard
-          label="Recebido"
-          value={stats.recebido}
-          icon="archive-outline"
-          color={colors.secondary}
-        />
-        <StatCard
-          label="A Preparar"
-          value={stats.aPreparar}
-          icon="time-outline"
-          color={colors.warning}
-        />
-        <StatCard
-          label="Preparado"
-          value={stats.preparado}
-          icon="checkmark-done-circle-outline"
-          color={colors.success}
-        />
-        <StatCard
-          label="Em fábrica"
-          value={stats.fabrica}
-          icon="sync-outline"
-          color={colors.info}
-        />
-      </View>
-    </View>
-  );
+  const situationOptions = ['Todos', ...SITUATIONS];
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+      {/* HEADER */}
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <View>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
+            Planilha Operacional
+          </Text>
+          <Text style={[styles.headerDate, { color: colors.textSecondary }]}>
+            {formatDateLabel(date)}
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={exportExcel}
+          style={[styles.exportBtn, { backgroundColor: colors.success }]}
+        >
+          <Ionicons name="document-text" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
+
+      {/* SEARCH AND FILTER */}
+      <View style={styles.searchContainer}>
+        <View
+          style={[
+            styles.searchBox,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
+          <Ionicons name="search" size={18} color={colors.textTertiary} />
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Buscar produto, lote..."
+            placeholderTextColor={colors.textTertiary}
+            style={[styles.searchInput, { color: colors.textPrimary }]}
+          />
+          {search && (
+            <TouchableOpacity onPress={() => setSearch('')}>
+              <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* SITUATION FILTER */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+          {situationOptions.map(sit => (
+            <TouchableOpacity
+              key={sit}
+              onPress={() => setSitFilter(sit)}
+              style={[
+                styles.filterBtn,
+                {
+                  backgroundColor: sitFilter === sit ? colors.primary : colors.surface,
+                  borderColor: sitFilter === sit ? colors.primary : colors.border,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.filterText,
+                  {
+                    color: sitFilter === sit ? '#000' : colors.textSecondary,
+                    fontWeight: sitFilter === sit ? '700' : '600',
+                  },
+                ]}
+              >
+                {sit}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* LIST */}
       <ViewShot
         ref={viewShotRef}
         options={{
@@ -297,14 +398,20 @@ export default function PlanilhaScreen() {
       >
         {loading ? (
           <View style={styles.empty}>
-            <ActivityIndicator color={colors.primary} />
+            <ActivityIndicator color={colors.primary} size="large" />
+          </View>
+        ) : filtered.length === 0 ? (
+          <View style={styles.empty}>
+            <Ionicons name="inbox" size={48} color={colors.textTertiary} />
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+              Nenhum material encontrado
+            </Text>
           </View>
         ) : (
           <FlatList
             data={filtered}
             keyExtractor={item => item.id}
             renderItem={renderItem}
-            ListHeaderComponent={listHeader}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -313,13 +420,14 @@ export default function PlanilhaScreen() {
               />
             }
             contentContainerStyle={{
-              padding: 16,
+              padding: 12,
               paddingBottom: 120,
             }}
           />
         )}
       </ViewShot>
 
+      {/* FAB */}
       <TouchableOpacity
         style={[styles.fab, { backgroundColor: colors.primary }]}
         onPress={() => {
@@ -341,37 +449,204 @@ export default function PlanilhaScreen() {
   );
 }
 
+function StatCard({ label, value, icon, color, colors }: any) {
+  return (
+    <View
+      style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+    >
+      <View style={[styles.statIcon, { backgroundColor: color + '20' }]}>
+        <Ionicons name={icon} size={22} color={color} />
+      </View>
+      <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{label}</Text>
+      <Text style={[styles.statValue, { color: color }]}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
   },
 
-  empty: {
-    flex: 1,
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+
+  headerDate: {
+    fontSize: 12,
+  },
+
+  exportBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  headerContainer: {
-    marginBottom: 12,
-  },
-
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+  statsScroll: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
 
   statCard: {
-    width: '48%',
-    padding: 12,
+    width: 100,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
+    marginRight: 8,
     alignItems: 'center',
+    gap: 8,
+  },
+
+  statIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  statLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+
+  statValue: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+
+  searchContainer: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+  },
+
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 8,
+  },
+
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+  },
+
+  filterScroll: {
     gap: 6,
   },
 
-  statIconBg: {
+  filterBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginRight: 6,
+  },
+
+  filterText: {
+    fontSize: 12,
+  },
+
+  modernCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 10,
+    overflow: 'hidden',
+  },
+
+  cardHeaderBar: {
+    height: 4,
+  },
+
+  cardMainContent: {
+    padding: 14,
+    gap: 12,
+  },
+
+  productHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+
+  productBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  productAbbr: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  productName: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+
+  batchInfo: {
+    fontSize: 12,
+  },
+
+  infoRow: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+
+  infoPair: {
+    flex: 1,
+  },
+
+  infoLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+
+  infoValue: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  statusRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+
+  observation: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+
+  deleteBtn: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
     width: 36,
     height: 36,
     borderRadius: 8,
@@ -379,78 +654,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  statValue: {
-    fontSize: 16,
-    fontWeight: '800',
-  },
-
-  statLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-  },
-
-  card: {
-    borderRadius: 16,
-    borderWidth: 1,
-    marginBottom: 12,
-    overflow: 'hidden',
-  },
-
-  cardHeader: {
-    flexDirection: 'row',
+  empty: {
+    flex: 1,
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-  },
-
-  headerText: {
-    fontSize: 11,
-    fontWeight: '500',
-  },
-
-  cardContent: {
-    padding: 14,
-  },
-
-  productRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    justifyContent: 'center',
     gap: 12,
   },
 
-  productBadge: {
-    width: 52,
-    height: 52,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  productAbbr: {
+  emptyText: {
     fontSize: 14,
-    fontWeight: '800',
-  },
-
-  productName: {
-    fontSize: 18,
-    fontWeight: '800',
-    marginBottom: 4,
-  },
-
-  batchInfo: {
-    fontSize: 13,
-    fontWeight: '400',
-  },
-
-  cardFooter: {
-    flexDirection: 'row',
-    gap: 8,
-    flexWrap: 'wrap',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderTopWidth: 1,
+    fontWeight: '600',
   },
 
   fab: {
