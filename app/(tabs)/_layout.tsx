@@ -72,8 +72,6 @@ export default function TabLayout() {
       />
       <Tabs.Screen name="planilha" options={{ href: null }} />
       <Tabs.Screen name="turno" options={{ href: null }} />
-      
-      <Tabs.Screen name="explore" options={{ href: null }} />
     </Tabs>
   );
 }
