@@ -27,6 +27,15 @@ import StatusPill from '../../src/StatusPill';
 import { useTheme } from '../../src/theme';
 
 import { formatDateLabel, ProductionItem, SITUATIONS, todayISO } from '../../src/types';
+import {
+  defaultRecipes,
+  defaultChemistry,
+  defaultProcedures,
+  defaultTutorials,
+  defaultEPIs,
+  defaultSafetyTips,
+} from '../../src/guideData';
+import { generateProductCatalogCSV } from '../../src/excelGenerator';
 
 const PRODUCT_COLORS: Record<string, string> = {
   'FOX XPRO': '#00BCFF',
@@ -196,6 +205,33 @@ export default function Planilha2Screen() {
     } catch (error) {
       console.error(error);
       Alert.alert('Erro', 'Falha ao exportar Excel.');
+    }
+  };
+
+  const exportProductCatalog = async () => {
+    try {
+      const csvContent = generateProductCatalogCSV(
+        defaultRecipes,
+        defaultChemistry,
+        defaultProcedures
+      );
+
+      const filename = `Catalogo_Produtos_${new Date().toISOString().split('T')[0]}.csv`;
+      const filepath = `${FileSystem.documentDirectory}${filename}`;
+
+      await FileSystem.writeAsStringAsync(filepath, csvContent);
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(filepath, {
+          mimeType: 'text/csv',
+          dialogTitle: 'Exportar Catálogo de Produtos',
+        });
+      } else {
+        Alert.alert('Sucesso', `Arquivo salvo em: ${filepath}`);
+      }
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Erro', 'Falha ao exportar catálogo de produtos.');
     }
   };
 
@@ -417,17 +453,30 @@ export default function Planilha2Screen() {
           </Text>
         </View>
 
-        <TouchableOpacity
-          onPress={exportExcel}
-          style={[
-            styles.exportBtn,
-            {
-              backgroundColor: colors.success,
-            },
-          ]}
-        >
-          <Ionicons name="document-text" size={20} color="#FFF" />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity
+            onPress={exportExcel}
+            style={[
+              styles.exportBtn,
+              {
+                backgroundColor: colors.success,
+              },
+            ]}
+          >
+            <Ionicons name="document-text" size={20} color="#FFF" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={exportProductCatalog}
+            style={[
+              styles.exportBtn,
+              {
+                backgroundColor: colors.primary,
+              },
+            ]}
+          >
+            <Ionicons name="list" size={20} color="#FFF" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.searchContainer}>
