@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -18,46 +19,26 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../../src/auth';
+import {
+  Chemistry,
+  EPI,
+  GuideCategory,
+  Procedure,
+  Recipe,
+  SafetyTip,
+  Tutorial,
+  defaultChemistry,
+  defaultEPIs,
+  defaultProcedures,
+  defaultRecipes,
+  defaultSafetyTips,
+  defaultTutorials,
+} from '../../src/guideData';
 import { useTheme } from '../../src/theme';
 
 const { width, height } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
 const GRID_GAP = 16;
-
-type Recipe = {
-  product: string;
-  recipe: string;
-  active_ingredient: string;
-  category: string;
-  func: string;
-  application: string;
-  notes: string;
-  image?: string;
-  duration?: string;
-  difficulty?: 'Fácil' | 'Médio' | 'Avançado';
-};
-
-type Chemistry = {
-  name: string;
-  alias: string;
-  className: string;
-  func: string;
-  applications: string;
-  safety: string;
-  image?: string;
-  molecularFormula?: string;
-};
-
-type Procedure = {
-  title: string;
-  icon: any;
-  content: string;
-  steps?: string[];
-  tips?: string[];
-  duration?: string;
-};
-
-type GuideCategory = 'produtos' | 'quimica' | 'procedimentos' | 'seguranca' | 'epis' | 'tutorial';
 
 interface CourseCard {
   id: string;
@@ -72,15 +53,21 @@ interface CourseCard {
   level: 'Iniciante' | 'Intermediário' | 'Avançado';
   lessons: number;
   category: GuideCategory;
+  data?: any;
+  massageTime?: string;
 }
 
 export default function GuideScreen() {
+  const router = useRouter();
   const { colors, isDark } = useTheme();
   const [activeCategory, setActiveCategory] = useState<GuideCategory>('produtos');
   const [search, setSearch] = useState('');
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [chemistry, setChemistry] = useState<Chemistry[]>([]);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
+  const [tutorials, setTutorials] = useState<Tutorial[]>([]);
+  const [epis, setEPIs] = useState<EPI[]>([]);
+  const [safetyTips, setSafetyTips] = useState<SafetyTip[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -96,19 +83,18 @@ export default function GuideScreen() {
       const baseChemistry = r.data.chemistry ?? [];
       const baseProcedures = r.data.procedures ?? [];
 
-      const defaultRecipes = getDefaultRecipes();
-      const defaultChemistry = getDefaultChemistry();
-      const baseProceduresDefault = getDefaultProcedures();
-
       setRecipes(baseRecipes.length > 0 ? baseRecipes : defaultRecipes);
       setChemistry(baseChemistry.length > 0 ? baseChemistry : defaultChemistry);
-      setProcedures(baseProcedures.length > 0 ? baseProcedures : baseProceduresDefault);
+      setProcedures(baseProcedures.length > 0 ? baseProcedures : defaultProcedures);
     } catch (e) {
       console.log('Erro recipes:', e);
-      setRecipes(getDefaultRecipes());
-      setChemistry(getDefaultChemistry());
-      setProcedures(getDefaultProcedures());
+      setRecipes(defaultRecipes);
+      setChemistry(defaultChemistry);
+      setProcedures(defaultProcedures);
     } finally {
+      setTutorials(defaultTutorials);
+      setEPIs(defaultEPIs);
+      setSafetyTips(defaultSafetyTips);
       setLoading(false);
     }
   };
@@ -132,6 +118,21 @@ export default function GuideScreen() {
     return procedures.filter(p => `${p.title} ${p.content}`.toLowerCase().includes(q));
   }, [procedures, q]);
 
+  const filteredTutorials = useMemo(() => {
+    if (!q) return tutorials;
+    return tutorials.filter(t => `${t.title} ${t.description}`.toLowerCase().includes(q));
+  }, [tutorials, q]);
+
+  const filteredEPIs = useMemo(() => {
+    if (!q) return epis;
+    return epis.filter(e => `${e.name} ${e.description}`.toLowerCase().includes(q));
+  }, [epis, q]);
+
+  const filteredSafety = useMemo(() => {
+    if (!q) return safetyTips;
+    return safetyTips.filter(s => `${s.title} ${s.description}`.toLowerCase().includes(q));
+  }, [safetyTips, q]);
+
   const categories: {
     key: GuideCategory;
     label: string;
@@ -145,6 +146,13 @@ export default function GuideScreen() {
       icon: 'flask',
       color: '#00BCFF',
       gradient: ['#00BCFF', '#0099CC'],
+    },
+    {
+      key: 'receita',
+      label: 'Receitas',
+      icon: 'list',
+      color: '#10B981',
+      gradient: ['#10B981', '#059669'],
     },
     {
       key: 'quimica',
@@ -184,8 +192,12 @@ export default function GuideScreen() {
   ];
 
   const getCourseCards = (): CourseCard[] => {
+    const searchRecipes = activeCategory === 'receita' ? filteredRecipes : recipes;
+    const searchChem = activeCategory === 'receita' ? [] : filteredChem;
+    const searchProc = activeCategory === 'receita' ? [] : filteredProc;
+
     if (activeCategory === 'produtos') {
-      return recipes.map((r, i) => ({
+      return filteredRecipes.map((r, i) => ({
         id: `prod-${i}`,
         title: r.product,
         subtitle: r.recipe,
@@ -193,14 +205,32 @@ export default function GuideScreen() {
         icon: 'flask',
         color: '#00BCFF',
         gradientColors: ['#00BCFF', '#0099CC'],
-        duration: r.application?.match(/\d+/)?.[0] || '8-10',
+        duration: r.duration || '8-10',
         level: 'Intermediário',
         lessons: 4,
         category: 'produtos',
+        data: r,
+      }));
+    }
+    if (activeCategory === 'receita') {
+      return filteredRecipes.map((r, i) => ({
+        id: `rec-${i}`,
+        title: r.product,
+        subtitle: r.recipe,
+        description: r.category,
+        icon: 'list',
+        color: '#10B981',
+        gradientColors: ['#10B981', '#059669'],
+        duration: r.massageTime || 'A cronometrar',
+        level: (r.difficulty as any) || 'Intermediário',
+        lessons: 1,
+        category: 'receita',
+        data: r,
+        massageTime: r.massageTime,
       }));
     }
     if (activeCategory === 'quimica') {
-      return chemistry.map((c, i) => ({
+      return filteredChem.map((c, i) => ({
         id: `chem-${i}`,
         title: c.name,
         subtitle: c.alias,
@@ -212,10 +242,11 @@ export default function GuideScreen() {
         level: 'Avançado',
         lessons: 3,
         category: 'quimica',
+        data: c,
       }));
     }
     if (activeCategory === 'procedimentos') {
-      return procedures.map((p, i) => ({
+      return filteredProc.map((p, i) => ({
         id: `proc-${i}`,
         title: p.title,
         subtitle: 'Passo a passo',
@@ -223,18 +254,79 @@ export default function GuideScreen() {
         icon: p.icon,
         color: '#F59E0B',
         gradientColors: ['#F59E0B', '#D97706'],
-        duration: '15-20',
+        duration: p.duration || '15-20',
         level: 'Iniciante',
         lessons: 5,
         category: 'procedimentos',
+        data: p,
+      }));
+    }
+    if (activeCategory === 'tutorial') {
+      return filteredTutorials.map((t, i) => ({
+        id: `tut-${i}`,
+        title: t.title,
+        subtitle: t.level,
+        description: t.description,
+        icon: 'play-circle',
+        color: '#EC4899',
+        gradientColors: ['#EC4899', '#BE185D'],
+        duration: t.duration,
+        level: (t.level as any) || 'Iniciante',
+        lessons: 1,
+        category: 'tutorial',
+        data: t,
+      }));
+    }
+    if (activeCategory === 'epis') {
+      return filteredEPIs.map((e, i) => ({
+        id: `epi-${i}`,
+        title: e.name,
+        subtitle: e.category,
+        description: e.description,
+        icon: 'shield',
+        color: '#8B5CF6',
+        gradientColors: ['#8B5CF6', '#6D28D9'],
+        duration: e.importance,
+        level: (e.importance as any) || 'Médio',
+        lessons: 1,
+        category: 'epis',
+        data: e,
+      }));
+    }
+    if (activeCategory === 'seguranca') {
+      return filteredSafety.map((s, i) => ({
+        id: `safe-${i}`,
+        title: s.title,
+        subtitle: s.severity,
+        description: s.description,
+        icon: 'alert-circle',
+        color: '#EF4444',
+        gradientColors: ['#EF4444', '#DC2626'],
+        duration: s.severity,
+        level: (s.severity as any) || 'Médio',
+        lessons: 1,
+        category: 'seguranca',
+        data: s,
       }));
     }
     return [];
   };
 
-  const openDetail = (item: any) => {
+  const openDetail = (item: CourseCard) => {
     setSelectedItem(item);
     setModalVisible(true);
+  };
+
+  const navigateToDetail = (item: CourseCard) => {
+    router.push({
+      pathname: '/guide-detail',
+      params: {
+        itemId: item.id,
+        category: item.category,
+        title: item.title,
+      },
+    });
+    setModalVisible(false);
   };
 
   const renderCourseCard = ({ item }: { item: CourseCard }) => (
@@ -274,34 +366,54 @@ export default function GuideScreen() {
 
   const renderHeroCard = () => (
     <LinearGradient
-      colors={isDark ? ['#1a1a2e', '#16213e'] : ['#667eea', '#764ba2']}
+      colors={isDark ? ['#2d2d3d', '#1a1a2e'] : ['#f0f4f8', '#e2e8f0']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.heroCard}
     >
       <View style={styles.heroContent}>
-        <Text style={styles.heroBadge}>🎓 GUIA COMPLETO</Text>
-        <Text style={styles.heroTitle}>Aprenda sobre{'\n'}Formulação Agrícola</Text>
-        <Text style={styles.heroDescription}>
+        <Text style={[styles.heroBadge, { color: isDark ? '#a0aec0' : '#4a5568' }]}>
+          🎓 GUIA COMPLETO
+        </Text>
+        <Text style={[styles.heroTitle, { color: isDark ? '#e2e8f0' : '#1a202c' }]}>
+          Aprenda sobre{'\n'}Formulação Agrícola
+        </Text>
+        <Text style={[styles.heroDescription, { color: isDark ? '#cbd5e0' : '#4a5568' }]}>
           Domine as técnicas de massagem, conheça os produtos e garanta a qualidade do seu processo
         </Text>
         <View style={styles.heroStats}>
           <View style={styles.heroStat}>
-            <Text style={styles.heroStatNumber}>50+</Text>
-            <Text style={styles.heroStatLabel}>Produtos</Text>
+            <Text style={[styles.heroStatNumber, { color: isDark ? '#e2e8f0' : '#1a202c' }]}>
+              50+
+            </Text>
+            <Text style={[styles.heroStatLabel, { color: isDark ? '#a0aec0' : '#718096' }]}>
+              Produtos
+            </Text>
           </View>
           <View style={styles.heroStat}>
-            <Text style={styles.heroStatNumber}>30+</Text>
-            <Text style={styles.heroStatLabel}>Ingredientes</Text>
+            <Text style={[styles.heroStatNumber, { color: isDark ? '#e2e8f0' : '#1a202c' }]}>
+              30+
+            </Text>
+            <Text style={[styles.heroStatLabel, { color: isDark ? '#a0aec0' : '#718096' }]}>
+              Ingredientes
+            </Text>
           </View>
           <View style={styles.heroStat}>
-            <Text style={styles.heroStatNumber}>15+</Text>
-            <Text style={styles.heroStatLabel}>Procedimentos</Text>
+            <Text style={[styles.heroStatNumber, { color: isDark ? '#e2e8f0' : '#1a202c' }]}>
+              15+
+            </Text>
+            <Text style={[styles.heroStatLabel, { color: isDark ? '#a0aec0' : '#718096' }]}>
+              Procedimentos
+            </Text>
           </View>
         </View>
       </View>
       <View style={styles.heroImageContainer}>
-        <Ionicons name="school-outline" size={120} color="rgba(255,255,255,0.1)" />
+        <Ionicons
+          name="school-outline"
+          size={120}
+          color={isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}
+        />
       </View>
     </LinearGradient>
   );
@@ -464,21 +576,35 @@ export default function GuideScreen() {
                   <View style={styles.modalStat}>
                     <Ionicons name="time-outline" size={16} color={colors.primary} />
                     <Text style={[styles.modalStatText, { color: colors.textSecondary }]}>
-                      {selectedItem?.duration} minutos
+                      {selectedItem?.category === 'receita'
+                        ? selectedItem?.massageTime || selectedItem?.duration
+                        : `${selectedItem?.duration}${selectedItem?.category === 'receita' ? '' : ' min'}`}
                     </Text>
                   </View>
-                  <View style={styles.modalStat}>
-                    <Ionicons name="book-outline" size={16} color={colors.primary} />
-                    <Text style={[styles.modalStatText, { color: colors.textSecondary }]}>
-                      {selectedItem?.lessons} aulas
-                    </Text>
-                  </View>
-                  <View style={styles.modalStat}>
-                    <Ionicons name="signal-outline" size={16} color={colors.primary} />
-                    <Text style={[styles.modalStatText, { color: colors.textSecondary }]}>
-                      {selectedItem?.level}
-                    </Text>
-                  </View>
+                  {selectedItem?.category !== 'receita' && (
+                    <>
+                      <View style={styles.modalStat}>
+                        <Ionicons name="book-outline" size={16} color={colors.primary} />
+                        <Text style={[styles.modalStatText, { color: colors.textSecondary }]}>
+                          {selectedItem?.lessons} aula(s)
+                        </Text>
+                      </View>
+                      <View style={styles.modalStat}>
+                        <Ionicons name="signal-outline" size={16} color={colors.primary} />
+                        <Text style={[styles.modalStatText, { color: colors.textSecondary }]}>
+                          {selectedItem?.level}
+                        </Text>
+                      </View>
+                    </>
+                  )}
+                  {selectedItem?.category === 'receita' && (
+                    <View style={styles.modalStat}>
+                      <Ionicons name="flask-outline" size={16} color={colors.primary} />
+                      <Text style={[styles.modalStatText, { color: colors.textSecondary }]}>
+                        {selectedItem?.level}
+                      </Text>
+                    </View>
+                  )}
                 </View>
 
                 <View style={styles.divider} />
@@ -487,8 +613,11 @@ export default function GuideScreen() {
                   {selectedItem?.description}
                 </Text>
 
-                <TouchableOpacity style={[styles.startButton, { backgroundColor: colors.primary }]}>
-                  <Text style={styles.startButtonText}>Iniciar Curso</Text>
+                <TouchableOpacity
+                  style={[styles.startButton, { backgroundColor: colors.primary }]}
+                  onPress={() => navigateToDetail(selectedItem)}
+                >
+                  <Text style={styles.startButtonText}>Mais Detalhes</Text>
                   <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
                 </TouchableOpacity>
               </ScrollView>
@@ -498,228 +627,6 @@ export default function GuideScreen() {
       </Modal>
     </SafeAreaView>
   );
-}
-
-// DEFAULT DATA FUNCTIONS
-function getDefaultRecipes(): Recipe[] {
-  return [
-    {
-      product: 'FOX XPRO',
-      recipe: 'Triple Action',
-      active_ingredient: 'Trifloxystrobin + Prothioconazole + Bixafen',
-      category: 'Fungicida Sistêmico Avançado',
-      func: 'Controle de doenças foliares com tecnologia Leafshield',
-      application: 'Pulverização foliar (8-10 min)',
-      notes:
-        'Tecnologia exclusiva que garante absorção rápida e proteção prolongada. Ideal para culturas de alto valor.',
-      duration: '8-10',
-      difficulty: 'Intermediário',
-    },
-    {
-      product: 'NATIVO WG 75',
-      recipe: 'Dual Action',
-      active_ingredient: 'Tebuconazole (50%) + Trifloxystrobin (25%)',
-      category: 'Fungicida Preventivo',
-      func: 'Proteção preventiva e curativa com duplo mecanismo',
-      application: 'Pulverização (6-8 min)',
-      notes: 'Granulado dispersível em água. Combinação sinérgica para máxima eficácia.',
-      duration: '6-8',
-      difficulty: 'Intermediário',
-    },
-    {
-      product: 'FOX PRO',
-      recipe: 'Broad Spectrum',
-      active_ingredient: 'Trifloxystrobin',
-      category: 'Fungicida Estrobilurina',
-      func: 'Controle de múltiplas doenças com excelente cobertura',
-      application: 'Aplicação em 8-10 min',
-      notes: 'Ótima cobertura foliar. Resistente à chuva após 2 horas.',
-      duration: '8-10',
-      difficulty: 'Iniciante',
-    },
-    {
-      product: 'CURBIX',
-      recipe: 'Insecticide Advanced',
-      active_ingredient: 'Clothianidin',
-      category: 'Inseticida Neonicotinóide',
-      func: 'Controle de pragas sugadoras com ação sistêmica',
-      application: 'Pulverização agrícola',
-      notes: 'Sistemicidade rápida. Protege a planta por dentro.',
-      duration: '5-7',
-      difficulty: 'Intermediário',
-    },
-    {
-      product: 'CONNECT',
-      recipe: 'Fungicide Mix',
-      active_ingredient: 'Metalaxyl + Mancozeb',
-      category: 'Fungicida Multi-sítio',
-      func: 'Proteção contra oomicetos e fungos foliares',
-      application: 'Pulverização preventiva',
-      notes: 'Contato e translaminar. Ideal para programas de manejo.',
-      duration: '7-9',
-      difficulty: 'Avançado',
-    },
-    {
-      product: 'BULLDOCK',
-      recipe: 'Pyrethroid Potente',
-      active_ingredient: 'Beta-ciflutrina',
-      category: 'Inseticida Sintético',
-      func: 'Controle rápido de pragas com efeito knockdown',
-      application: 'Pulverização foliar',
-      notes: 'Ação knockdown potente. Eficaz contra lepidópteros.',
-      duration: '4-6',
-      difficulty: 'Iniciante',
-    },
-  ];
-}
-
-function getDefaultChemistry(): Chemistry[] {
-  return [
-    {
-      name: 'Trifloxystrobin',
-      alias: 'Strobilurin de última geração',
-      className: 'QoI (Quinona externa inibidora)',
-      func: 'Inibição da respiração mitocondrial, bloqueando a produção de energia do fungo',
-      applications: 'Fungicida foliar para controle de oídio, ferrugem e antracnose',
-      safety: 'Categoria toxicológica 5 (produto pouco tóxico). Evitar contato ocular prolongado.',
-      molecularFormula: 'C20H19F3N2O4',
-    },
-    {
-      name: 'Tebuconazole',
-      alias: 'Triazol sistêmico',
-      className: 'DMI (Demetilação inibidor)',
-      func: 'Inibição da biossíntese de ergosterol, essencial para membrana celular do fungo',
-      applications: 'Proteção preventiva e curativa em diversas culturas',
-      safety: 'Classe III - medianamente tóxico. Evitar inalação do pó.',
-      molecularFormula: 'C16H22ClN3O',
-    },
-    {
-      name: 'Prothioconazole',
-      alias: 'Triazol Avançado',
-      className: 'DMI (Demetilação inibidor)',
-      func: 'Inibição de ergosterol + propriedades anti-transpiração',
-      applications: 'Fungicida sistêmico para doenças de final de ciclo',
-      safety: 'Baixa toxicidade para mamíferos. Seguro em aplicação foliar.',
-      molecularFormula: 'C14H15Cl2N3O',
-    },
-    {
-      name: 'Bixafen',
-      alias: 'Carboxamida moderna',
-      className: 'SDHI (Succinate dehydrogenase inhibitor)',
-      func: 'Inibição do complexo II mitocondrial, interrompendo o ciclo de Krebs',
-      applications: 'Controle de ferrugem e manchas foliares resistentes a QoI',
-      safety: 'Toxicidade aguda baixa. Biodegradável no solo.',
-      molecularFormula: 'C18H12Cl2F3N3O',
-    },
-    {
-      name: 'Clothianidin',
-      alias: 'Neonicotinóide sistêmico',
-      className: 'Agonista nicotínico',
-      func: 'Agonista de receptor de acetilcolina, causando paralisia e morte',
-      applications: 'Inseticida sistêmico para pragas sugadoras',
-      safety: 'ALTAMENTE TÓXICO PARA ABELHAS. Evitar aplicação durante floração.',
-      molecularFormula: 'C6H8ClN5O2S',
-    },
-  ];
-}
-
-function getDefaultProcedures(): Procedure[] {
-  return [
-    {
-      title: 'Preparação do Equipamento',
-      icon: 'cog',
-      content: 'Inspeção completa do massageador industrial antes do uso',
-      steps: [
-        'Inspecione visualmente todas as partes do equipamento',
-        'Verifique se o equipamento está limpo e sem resíduos',
-        'Valide conectores, mangueiras e vedações',
-        'Teste funcionamento básico em modo vazio por 30 segundos',
-        'Documente a inspeção no formulário de checklist',
-      ],
-      tips: [
-        'Use EPI completo durante a inspeção',
-        'Nunca opere com ruídos anormais',
-        'Lubrifique conforme manual do fabricante',
-      ],
-      duration: '10-15',
-    },
-    {
-      title: 'Carregamento de Ingredientes',
-      icon: 'flask',
-      content: 'Processo seguro de adição de matérias-primas',
-      steps: [
-        'Pesar cada ingrediente conforme receita técnica',
-        'Conferir datas de validade e lotes',
-        'Adicionar na sequência correta (líquidos primeiro, depois sólidos)',
-        'Usar EPI completo durante todo o processo',
-        'Manter registro de lote para rastreabilidade',
-        'Verificar compatibilidade química antes da mistura',
-      ],
-      tips: [
-        'Sempre use balanças calibradas',
-        'Evite contaminação cruzada',
-        'Registre qualquer anomalia imediatamente',
-      ],
-      duration: '15-20',
-    },
-    {
-      title: 'Ciclo de Massagem',
-      icon: 'play-circle',
-      content: 'Processo de homogeneização da formulação',
-      steps: [
-        'Inicie o ciclo seguindo os parâmetros da receita',
-        'Monitore temperatura constantemente (não exceder 40°C)',
-        'Observe a homogeneidade visual da mistura',
-        'Cronometro ativo - respeite o tempo determinado',
-        'Abra apenas após confirmação de homogeneidade completa',
-        'Documente os parâmetros do ciclo',
-      ],
-      tips: [
-        'Nunca abra antes do tempo',
-        'Use sensor de temperatura digital',
-        'Faça pausas se necessário para evitar superaquecimento',
-      ],
-      duration: '8-12',
-    },
-    {
-      title: 'Verificação de Qualidade',
-      icon: 'checkmark-circle',
-      content: 'Controles de qualidade da formulação final',
-      steps: [
-        'Inspecione visualmente cores e aspecto',
-        'Teste consistência/viscosidade',
-        'Valide pH conforme especificação (5.5-7.0)',
-        'Teste dispersibilidade em água',
-        'Documente todos os resultados no relatório',
-        'Aprove ou rejeite conforme critérios',
-      ],
-      tips: [
-        'Use equipamentos calibrados',
-        'Compare com amostra padrão',
-        'Em caso de dúvida, rejeite o lote',
-      ],
-      duration: '10-15',
-    },
-    {
-      title: 'Descarga e Embalagem',
-      icon: 'archive',
-      content: 'Transferência e acondicionamento do produto final',
-      steps: [
-        'Descarregue com cuidado usando sistema fechado',
-        'Use EPI apropriado para evitar contato',
-        'Etiquete corretamente com lote e validade',
-        'Armazene em local fresco e arejado',
-        'Registre saída no sistema de inventário',
-        'Limpe o equipamento imediatamente após uso',
-      ],
-      tips: [
-        'Evite respingos e derramamentos',
-        'Recipientes devem estar limpos e secos',
-        'Documente qualquer perda de produto',
-      ],
-      duration: '15-20',
-    },
-  ];
 }
 
 const styles = StyleSheet.create({
@@ -775,7 +682,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   heroBadge: {
-    color: 'rgba(255,255,255,0.9)',
     fontSize: 12,
     fontWeight: '600',
     marginBottom: 12,
@@ -783,13 +689,11 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#FFFFFF',
     marginBottom: 12,
     lineHeight: 36,
   },
   heroDescription: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
     lineHeight: 20,
     marginBottom: 20,
   },
@@ -803,11 +707,9 @@ const styles = StyleSheet.create({
   heroStatNumber: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
   },
   heroStatLabel: {
     fontSize: 11,
-    color: 'rgba(255,255,255,0.7)',
   },
   heroImageContainer: {
     position: 'absolute',
