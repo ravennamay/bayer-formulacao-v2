@@ -204,6 +204,16 @@ export default function PlanilhaScreen() {
     }
   };
 
+  const StatCard = ({ label, value, icon, color }: { label: string; value: number; icon: string; color: string }) => (
+    <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <View style={[styles.statIconBg, { backgroundColor: color + '22' }]}>
+        <Ionicons name={icon as any} size={20} color={color} />
+      </View>
+      <Text style={[styles.statValue, { color }]}>{value}</Text>
+      <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{label}</Text>
+    </View>
+  );
+
   const renderItem = ({ item }: { item: ProductionItem }) => (
     <View
       style={[
@@ -243,6 +253,37 @@ export default function PlanilhaScreen() {
     </View>
   );
 
+  const listHeader = () => (
+    <View style={styles.headerContainer}>
+      <View style={styles.statsGrid}>
+        <StatCard
+          label="Recebido"
+          value={stats.recebido}
+          icon="archive-outline"
+          color={colors.secondary}
+        />
+        <StatCard
+          label="A Preparar"
+          value={stats.aPreparar}
+          icon="time-outline"
+          color={colors.warning}
+        />
+        <StatCard
+          label="Preparado"
+          value={stats.preparado}
+          icon="checkmark-done-circle-outline"
+          color={colors.success}
+        />
+        <StatCard
+          label="Em fábrica"
+          value={stats.fabrica}
+          icon="sync-outline"
+          color={colors.info}
+        />
+      </View>
+    </View>
+  );
+
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
       <ViewShot
@@ -263,6 +304,7 @@ export default function PlanilhaScreen() {
             data={filtered}
             keyExtractor={item => item.id}
             renderItem={renderItem}
+            ListHeaderComponent={listHeader}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -302,6 +344,49 @@ export default function PlanilhaScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
+  },
+
+  empty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  headerContainer: {
+    marginBottom: 12,
+  },
+
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+
+  statCard: {
+    width: '48%',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    gap: 6,
+  },
+
+  statIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  statValue: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+
+  statLabel: {
+    fontSize: 10,
+    fontWeight: '600',
   },
 
   card: {
@@ -366,12 +451,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderTopWidth: 1,
-  },
-
-  empty: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 
   fab: {
