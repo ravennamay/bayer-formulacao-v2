@@ -18,7 +18,7 @@ type Recipe = {
   recipe: string;
   active_ingredient: string;
   category: string;
-  func: string; // FIX: renamed
+  func: string;
   application: string;
   notes: string;
 };
@@ -26,15 +26,22 @@ type Recipe = {
 type Chemistry = {
   name: string;
   alias: string;
-  className: string; // FIX: renamed
-  func: string;       // FIX
+  className: string;
+  func: string;
   applications: string;
   safety: string;
 };
 
 type Procedure = { title: string; icon: any; content: string };
 
-type Tab = "produtos" | "quimica" | "procedimentos";
+type SafetyRule = {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+};
+
+type Tab = "produtos" | "quimica" | "procedimentos" | "seguranca" | "epis" | "tutorial";
 
 export default function GuiaScreen() {
   const { colors } = useTheme();
@@ -46,6 +53,48 @@ export default function GuiaScreen() {
   const [procedures, setProcedures] = useState<Procedure[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [safetyRules] = useState<SafetyRule[]>([
+    {
+      id: "velocidade",
+      title: "🚗 Velocidade Máxima",
+      description: "Máximo 20 km/h com veículos nas áreas de operação. Respeite a segurança e o pavimento.",
+      icon: "speedometer",
+    },
+    {
+      id: "celular",
+      title: "📵 Proibido Celular",
+      description:
+        "Em áreas de máquinas e operação massageadora, uso de celular é proibido. Concentre-se!",
+      icon: "phone",
+    },
+    {
+      id: "padrão",
+      title: "🟨 Siga o Padrão Demarcado",
+      description: "Caminhe sempre pelas rotas demarcadas com fita amarela. Não saia dos limites.",
+      icon: "footsteps",
+    },
+    {
+      id: "fone",
+      title: "🎧 Sem Fone de Ouvido",
+      description:
+        "Fone de ouvido é proibido. Você precisa ouvir alertas de segurança e avisos de máquinas.",
+      icon: "volume-mute",
+    },
+    {
+      id: "epi",
+      title: "🛡️ EPI Obrigatório",
+      description:
+        "Use sempre o equipamento de proteção. Revise a aba de EPIs para mais detalhes.",
+      icon: "shield",
+    },
+    {
+      id: "pausas",
+      title: "☕ Faça Pausas",
+      description:
+        "Pausas regulares evitam fadiga. Solicite cobertura e respeite os horários. Saúde em primeiro lugar!",
+      icon: "cafe",
+    },
+  ]);
 
   useEffect(() => {
     (async () => {
@@ -93,7 +142,10 @@ export default function GuiaScreen() {
   const tabs: { key: Tab; label: string; icon: any }[] = [
     { key: "produtos", label: "Produtos", icon: "flask-outline" },
     { key: "quimica", label: "Química", icon: "leaf-outline" },
-    { key: "procedimentos", label: "Procedimentos", icon: "shield-outline" },
+    { key: "procedimentos", label: "Procedimentos", icon: "cog-outline" },
+    { key: "tutorial", label: "Tutorial", icon: "play-outline" },
+    { key: "epis", label: "EPIs", icon: "shield-outline" },
+    { key: "seguranca", label: "Segurança", icon: "warning-outline" },
   ];
 
   const toggle = (key: string) => {
@@ -150,10 +202,17 @@ export default function GuiaScreen() {
             >
               <Ionicons
                 name={t.icon}
-                size={14}
+                size={12}
                 color={active ? "#000" : colors.textSecondary}
               />
-              <Text style={{ color: active ? "#000" : colors.textSecondary }}>
+              <Text
+                style={{
+                  color: active ? "#000" : colors.textSecondary,
+                  fontSize: 11,
+                  fontWeight: active ? "700" : "500",
+                }}
+                numberOfLines={1}
+              >
                 {t.label}
               </Text>
             </TouchableOpacity>
@@ -237,6 +296,295 @@ export default function GuiaScreen() {
                 </Card>
               );
             })}
+
+          {/* TUTORIAL MASSAGEM */}
+          {tab === "tutorial" && (
+            <>
+              <Card
+                title="Como Massagear Corretamente"
+                subtitle="Guia prático passo a passo"
+                icon="book"
+                colors={colors}
+                open={expanded === "tutorial-intro"}
+                onPress={() => toggle("tutorial-intro")}
+              >
+                <Text style={{ color: colors.textPrimary, marginBottom: 12 }}>
+                  O equipamento de massagem é essencial para misturar e processar as receitas. Siga este guia para obter resultados ótimos:
+                </Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
+                  ⏱️ Tempos variam conforme a receita. Veja os detalhes de cada uma abaixo.
+                </Text>
+              </Card>
+
+              <Card
+                title="FOX XPRO"
+                subtitle="Massagem completa • ~8-10 minutos"
+                icon="flask"
+                colors={colors}
+                open={expanded === "tutorial-fox"}
+                onPress={() => toggle("tutorial-fox")}
+              >
+                <KV k="O que faz" v="Massageia TUDO - ingredientes ativos + auxiliares" colors={colors} />
+                <KV k="Tempo" v="8 a 10 minutos" colors={colors} />
+                <KV k="Passos" v="1️⃣ Carregue a máquina\n2️⃣ Inicie a sessão\n3️⃣ Aguarde 8-10 min\n4️⃣ Abra quando estiver homogêneo" colors={colors} />
+                <KV k="Dica" v="Não abra antes do tempo! O produto precisa estar bem misturado." colors={colors} />
+              </Card>
+
+              <Card
+                title="NATIVO WG 75"
+                subtitle="Massagem completa • ~6-8 minutos"
+                icon="flask"
+                colors={colors}
+                open={expanded === "tutorial-nativo"}
+                onPress={() => toggle("tutorial-nativo")}
+              >
+                <KV k="O que faz" v="Tebuconazole (50%) + Trifloxystrobin (25%) - TUDO massageia" colors={colors} />
+                <KV k="Tempo" v="6 a 8 minutos" colors={colors} />
+                <KV k="Passos" v="1️⃣ Adicione a água\n2️⃣ Coloque o pó WG\n3️⃣ Inicie a massagem\n4️⃣ Aguarde homogeneidade" colors={colors} />
+                <KV k="Dica" v="Mistura dual-action. Garanta que toda a poeira se integre." colors={colors} />
+              </Card>
+
+              <Card
+                title="TRIFLOXY 500"
+                subtitle="Massagem específica • ~6:40 (6min 40s)"
+                icon="flask"
+                colors={colors}
+                open={expanded === "tutorial-trifloxy"}
+                onPress={() => toggle("tutorial-trifloxy")}
+              >
+                <KV k="O que faz" v="Apenas TRIFLOXYSTROBIN (50%) - massageia somente o ativo" colors={colors} />
+                <KV k="Tempo Exato" v="6 minutos e 40 segundos" colors={colors} />
+                <KV k="Passos" v="1️⃣ Prepare o recipiente\n2️⃣ Carregue o trifloxystrobin\n3️⃣ Ative temporizador (6:40)\n4️⃣ Mantenha temperatura controlada" colors={colors} />
+                <KV k="Dica" v="Este é um componente crítico. Cronometro é obrigatório!" colors={colors} />
+              </Card>
+
+              <Card
+                title="Produtos SEM Massagem"
+                subtitle="Apenas descascador / pré-processamento"
+                icon="flask"
+                colors={colors}
+                open={expanded === "tutorial-belt"}
+                onPress={() => toggle("tutorial-belt")}
+              >
+                <KV k="BELT" v="Apenas DESCASCAR - não precisa massagear. Processo direto." colors={colors} />
+                <KV k="Tempo" v="Varia conforme o volume (3-5 min tipicamente)" colors={colors} />
+                <KV k="O que faz" v="Remove camadas/cascas da matéria-prima. NÃO mistura." colors={colors} />
+                <KV k="Dica" v="Após descascar, o material já está pronto para as próximas etapas." colors={colors} />
+              </Card>
+            </>
+          )}
+
+          {/* EPIs */}
+          {tab === "epis" && (
+            <>
+              <Card
+                title="EPIs Obrigatórios"
+                subtitle="Proteção pessoal é ESSENCIAL"
+                icon="shield"
+                colors={colors}
+                open={expanded === "epis-intro"}
+                onPress={() => toggle("epis-intro")}
+              >
+                <Text style={{ color: colors.textPrimary, marginBottom: 8 }}>
+                  Todos que trabalham com formulação DEVEM usar:
+                </Text>
+              </Card>
+
+              <Card
+                title="👕 Uniforme / Vestuário"
+                subtitle="Proteção básica"
+                icon="shirt"
+                colors={colors}
+                open={expanded === "epis-uniform"}
+                onPress={() => toggle("epis-uniform")}
+              >
+                <KV k="O que usar" v="Macacão ou uniforme de manga comprida" colors={colors} />
+                <KV k="Cor" v="Preferencialmente branco ou cores claras" colors={colors} />
+                <KV k="Estado" v="Limpo, sem rasgos, sem bolsos abertos" colors={colors} />
+                <KV k="Norma Bayer" v="Uniforme corporativo, mangas cobrindo punho" colors={colors} />
+              </Card>
+
+              <Card
+                title="🧤 Luvas"
+                subtitle="Proteção das mãos"
+                icon="hand"
+                colors={colors}
+                open={expanded === "epis-gloves"}
+                onPress={() => toggle("epis-gloves")}
+              >
+                <KV k="Tipo" v="Nitrilo ou PVC (resistente a químicos)" colors={colors} />
+                <KV k="Troca" v="Trocar a cada 2 horas ou se danificadas" colors={colors} />
+                <KV k="Tamanho" v="Ajuste correto - nem muito folgadas, nem apertadas" colors={colors} />
+                <KV k="Boas práticas" v="Retire sempre que sair da área. Lave as mãos." colors={colors} />
+              </Card>
+
+              <Card
+                title="🦶 Calçados de Segurança"
+                subtitle="Proteção dos pés"
+                icon="footsteps"
+                colors={colors}
+                open={expanded === "epis-shoes"}
+                onPress={() => toggle("epis-shoes")}
+              >
+                <KV k="Obrigatório" v="Sapato fechado com biqueira reforçada (steel toe)" colors={colors} />
+                <KV k="Antideslizante" v="Sola com boa aderência (prevenção de quedas)" colors={colors} />
+                <KV k="Limpeza" v="Remova toda poeira/líquido químico ao sair" colors={colors} />
+                <KV k="Durabilidade" v="Substitua quando desgastados (máx 12 meses)" colors={colors} />
+              </Card>
+
+              <Card
+                title="🥽 Óculos de Proteção"
+                subtitle="Proteção dos olhos"
+                icon="eye"
+                colors={colors}
+                open={expanded === "epis-glasses"}
+                onPress={() => toggle("epis-glasses")}
+              >
+                <KV k="Tipo" v="Óculos panorâmicos (protegem laterais também)" colors={colors} />
+                <KV k="Lentes" v="Policarbonato resistente a impacto" colors={colors} />
+                <KV k="Uso" v="Durante TODO processamento e massagem" colors={colors} />
+                <KV k="Emergência" v="Se líquido espirra nos olhos: lave com água por 15 min" colors={colors} />
+              </Card>
+
+              <Card
+                title="😷 Máscara/Proteção Respiratória"
+                subtitle="Proteção das vias aéreas"
+                icon="lungs"
+                colors={colors}
+                open={expanded === "epis-mask"}
+                onPress={() => toggle("epis-mask")}
+              >
+                <KV k="Tipo" v="N95 ou máscara com filtro para pós químicos" colors={colors} />
+                <KV k="Quando usar" v="Durante operações de descascamento e poeira" colors={colors} />
+                <KV k="Durabilidade" v="Substitua quando desgastar ou após 40 horas" colors={colors} />
+                <KV k="Ajuste" v="Deve cobrir nariz e boca completamente" colors={colors} />
+              </Card>
+
+              <Card
+                title="👷 Capacete"
+                subtitle="Proteção da cabeça"
+                icon="hardhat"
+                colors={colors}
+                open={expanded === "epis-helmet"}
+                onPress={() => toggle("epis-helmet")}
+              >
+                <KV k="Obrigatório" v="Sim, em todas as áreas de operação" colors={colors} />
+                <KV k="Cor" v="Amarelo ou cor corporativa Bayer" colors={colors} />
+                <KV k="Verificação" v="Revise trincas antes de usar" colors={colors} />
+                <KV k="Higiene" v="Limpe a banda interna regularmente" colors={colors} />
+              </Card>
+
+              <Card
+                title="⚠️ Checklist Diário"
+                subtitle="Antes de começar o trabalho"
+                icon="checklist"
+                colors={colors}
+                open={expanded === "epis-checklist"}
+                onPress={() => toggle("epis-checklist")}
+              >
+                <Text style={{ color: colors.textPrimary, fontSize: 13, lineHeight: 20 }}>
+                  ☑️ Uniforme limpo e sem danos{"\n"}
+                  ☑️ Luvas em bom estado{"\n"}
+                  ☑️ Sapatos de segurança presos{"\n"}
+                  ☑️ Óculos sem riscos{"\n"}
+                  ☑️ Máscara (se aplicável){"\n"}
+                  ☑️ Capacete bem ajustado{"\n"}
+                  ☑️ Todos os EPIs acessíveis{"\n"}
+                  ☑️ Certificado de treinamento em dia
+                </Text>
+              </Card>
+            </>
+          )}
+
+          {/* SEGURANÇA */}
+          {tab === "seguranca" && (
+            <>
+              <Card
+                title="Regras de Segurança do Site"
+                subtitle="Protocolo Bayer - Conformidade obrigatória"
+                icon="warning"
+                colors={colors}
+                open={expanded === "seg-intro"}
+                onPress={() => toggle("seg-intro")}
+              >
+                <Text style={{ color: colors.textPrimary, marginBottom: 8 }}>
+                  Estas regras protegem VOCÊ e sua equipe. Cumpra rigorosamente:
+                </Text>
+              </Card>
+
+              {safetyRules.map((rule) => (
+                <Card
+                  key={rule.id}
+                  title={rule.title}
+                  subtitle=""
+                  icon={rule.icon}
+                  colors={colors}
+                  open={expanded === `seg-${rule.id}`}
+                  onPress={() => toggle(`seg-${rule.id}`)}
+                >
+                  <Text style={{ color: colors.textPrimary }}>
+                    {rule.description}
+                  </Text>
+                </Card>
+              ))}
+
+              <Card
+                title="🚨 Procedimento em Caso de Acidente"
+                subtitle="Aja rápido e com calma"
+                icon="alert-circle"
+                colors={colors}
+                open={expanded === "seg-emergency"}
+                onPress={() => toggle("seg-emergency")}
+              >
+                <Text style={{ color: colors.textPrimary, fontSize: 13, lineHeight: 20 }}>
+                  1️⃣ PARE imediatamente sua atividade{"\n"}
+                  2️⃣ Avise um supervisor/responsável{"\n"}
+                  3️⃣ Dirija-se à sala de primeiros socorros{"\n"}
+                  4️⃣ Reporte o incidente no formulário{"\n"}
+                  5️⃣ Só retorne após avaliação{"\n\n"}
+                  <Text style={{ color: colors.primary, fontWeight: "600" }}>
+                    Emergência: Ligue para segurança do site
+                  </Text>
+                </Text>
+              </Card>
+
+              <Card
+                title="💧 Exposição a Químicos"
+                subtitle="O que fazer"
+                icon="water"
+                colors={colors}
+                open={expanded === "seg-chemical"}
+                onPress={() => toggle("seg-chemical")}
+              >
+                <Text style={{ color: colors.textPrimary, fontSize: 13, lineHeight: 20 }}>
+                  <Text style={{ fontWeight: "600" }}>Contato com a pele:</Text>
+                  {"\n"}Lave imediatamente com água corrente por 15 minutos{"\n\n"}
+                  <Text style={{ fontWeight: "600" }}>Contato com os olhos:</Text>
+                  {"\n"}Lave com água por 15 minutos. Procure médico.{"\n\n"}
+                  <Text style={{ fontWeight: "600" }}>Inalação:</Text>
+                  {"\n"}Saia da área, respire ar fresco. Se sentir mal, procure médico.
+                </Text>
+              </Card>
+
+              <Card
+                title="📋 Notas Importantes"
+                subtitle="Conformidade Bayer"
+                icon="document"
+                colors={colors}
+                open={expanded === "seg-notes"}
+                onPress={() => toggle("seg-notes")}
+              >
+                <Text style={{ color: colors.textPrimary, fontSize: 12, lineHeight: 18 }}>
+                  • Não coma, beba ou fume enquanto manuseia químicos{"\n\n"}
+                  • Lave as mãos antes de qualquer refeição{"\n\n"}
+                  • Não leve uniforme de trabalho para casa{"\n\n"}
+                  • Comunique danos/riscos imediatamente{"\n\n"}
+                  • Armazene produtos conforme indicado{"\n\n"}
+                  • Respeite as datas de validade
+                </Text>
+              </Card>
+            </>
+          )}
         </ScrollView>
       )}
     </SafeAreaView>
@@ -310,22 +658,21 @@ const styles = StyleSheet.create({
 
   tabsRow: {
     flexDirection: "row",
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    justifyContent: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    justifyContent: "flex-start",
     flexWrap: "wrap",
   },
 
   tab: {
-    flex: 1,
-    minWidth: 90,
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    gap: 6,
-    padding: 10,
-    borderRadius: 999,
+    gap: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 20,
     borderWidth: 1,
   },
 
