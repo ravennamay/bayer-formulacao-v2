@@ -728,18 +728,18 @@ function SituationRow({
     <View style={styles.sitRow}>
       <View style={styles.sitLeft}>
         <View
-          style={[
-            styles.sitIcon,
-            {
-              backgroundColor: bg,
-            },
-          ]}
-        >
-          <Ionicons
-            name={icon}
-            size={16}
-            color={color}
-          />
+        style={[
+          styles.sitIcon,
+          {
+            backgroundColor: bg,
+          },
+        ]}
+      >
+        <Ionicons
+          name={icon}
+          size={12}
+          color={color}
+        />
         </View>
 
         <Text
@@ -930,9 +930,9 @@ const styles = StyleSheet.create({
   },
 
   sitIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
+    width: 24,
+    height: 24,
+    borderRadius: 6,
     alignItems: "center",
     justifyContent: "center",
   },

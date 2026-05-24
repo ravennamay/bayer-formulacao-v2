@@ -214,11 +214,27 @@ export default function PlanilhaScreen() {
         },
       ]}
     >
-      <Text style={[styles.product, { color: colors.textPrimary }]}>{item.product}</Text>
+      <View style={[styles.cardHeader, { borderBottomColor: colors.border }]}>
+        <Text style={[styles.unit, { color: colors.textSecondary }]}>{item.unit} • {item.sc}</Text>
+      </View>
 
-      <Text style={[styles.batch, { color: colors.textSecondary }]}>Lote {item.batch}</Text>
+      <View style={styles.cardContent}>
+        <View style={styles.productSection}>
+          <View style={[styles.productBadge, { backgroundColor: colors.primary + '20' }]}>
+            <Text style={[styles.productAbbr, { color: colors.primary }]}>
+              {item.product_abbr?.slice(0, 3).toUpperCase()}
+            </Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.productName, { color: colors.textPrimary }]}>{item.product}</Text>
+            <Text style={[styles.batchInfo, { color: colors.textSecondary }]}>
+              Lote {item.batch} • {item.quantity ? `${item.quantity} ${item.quantity_unit}` : 'N/A'}
+            </Text>
+          </View>
+        </View>
+      </View>
 
-      <View style={styles.cardBottom}>
+      <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
         <StatusPill label={item.situation} />
         <StatusPill label={item.material_status} />
       </View>
@@ -288,25 +304,63 @@ const styles = StyleSheet.create({
 
   card: {
     borderRadius: 14,
-    padding: 14,
     borderWidth: 1,
     marginBottom: 12,
+    overflow: 'hidden',
+  },
+
+  cardHeader: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+
+  unit: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
+  cardContent: {
+    padding: 14,
+  },
+
+  productSection: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: 12,
   },
 
-  product: {
-    fontSize: 16,
-    fontWeight: '700',
+  productBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
   },
 
-  batch: {
+  productAbbr: {
     fontSize: 13,
+    fontWeight: '800',
   },
 
-  cardBottom: {
+  productName: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+
+  batchInfo: {
+    fontSize: 13,
+    marginTop: 4,
+  },
+
+  cardFooter: {
     flexDirection: 'row',
     gap: 8,
     flexWrap: 'wrap',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderTopWidth: 1,
   },
 
   empty: {
