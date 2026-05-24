@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Dimensions,
+  Image,
+  Linking,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -284,7 +286,7 @@ export default function GuideDetailScreen() {
       <>
         <View style={styles.detailSection}>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
-            Sobre o Tutoria
+            Sobre o Tutorial
           </Text>
           <Text style={[styles.descriptionText, { color: colors.textPrimary }]}>
             {tut.description}
@@ -311,6 +313,29 @@ export default function GuideDetailScreen() {
             </View>
           </View>
         </View>
+
+        {tut.videoUrl && (
+          <View style={styles.detailSection}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+              Vídeo Tutorial
+            </Text>
+            <TouchableOpacity
+              style={[styles.videoCard, { borderColor: colorScheme.main }]}
+              onPress={() => tut.videoUrl && Linking.openURL(tut.videoUrl)}
+            >
+              {tut.videoThumbnail && (
+                <Image
+                  source={{ uri: tut.videoThumbnail }}
+                  style={styles.videoThumbnail}
+                />
+              )}
+              <View style={[styles.videoOverlay, { backgroundColor: colorScheme.main + 'ee' }]}>
+                <Ionicons name="play-circle-outline" size={48} color="#FFFFFF" />
+              </View>
+              <Text style={styles.videoLabel}>Assistir no YouTube</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {tut.content && (
           <View style={styles.detailSection}>
@@ -353,6 +378,16 @@ export default function GuideDetailScreen() {
     const epi = selectedItem as any;
     return (
       <>
+        {epi.image && (
+          <View style={styles.detailSection}>
+            <Image
+              source={{ uri: epi.image }}
+              style={styles.epiImage}
+              resizeMode="contain"
+            />
+          </View>
+        )}
+
         <View style={styles.detailSection}>
           <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
             Sobre o EPI
@@ -635,6 +670,45 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     lineHeight: 20,
+  },
+  videoCard: {
+    height: 220,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000',
+  },
+  videoThumbnail: {
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
+  },
+  videoOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  videoLabel: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    zIndex: 2,
+  },
+  epiImage: {
+    width: '100%',
+    height: 300,
+    borderRadius: 16,
+    backgroundColor: '#f5f5f5',
   },
   stepItem: {
     flexDirection: 'row',

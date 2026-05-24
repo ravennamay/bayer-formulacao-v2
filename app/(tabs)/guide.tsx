@@ -366,34 +366,54 @@ export default function GuideScreen() {
 
   const renderHeroCard = () => (
     <LinearGradient
-      colors={isDark ? ['#1a1a2e', '#16213e'] : ['#667eea', '#764ba2']}
+      colors={isDark ? ['#2d2d3d', '#1a1a2e'] : ['#f0f4f8', '#e2e8f0']}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={styles.heroCard}
     >
       <View style={styles.heroContent}>
-        <Text style={styles.heroBadge}>🎓 GUIA COMPLETO</Text>
-        <Text style={styles.heroTitle}>Aprenda sobre{'\n'}Formulação Agrícola</Text>
-        <Text style={styles.heroDescription}>
+        <Text style={[styles.heroBadge, { color: isDark ? '#a0aec0' : '#4a5568' }]}>
+          🎓 GUIA COMPLETO
+        </Text>
+        <Text style={[styles.heroTitle, { color: isDark ? '#e2e8f0' : '#1a202c' }]}>
+          Aprenda sobre{'\n'}Formulação Agrícola
+        </Text>
+        <Text style={[styles.heroDescription, { color: isDark ? '#cbd5e0' : '#4a5568' }]}>
           Domine as técnicas de massagem, conheça os produtos e garanta a qualidade do seu processo
         </Text>
         <View style={styles.heroStats}>
           <View style={styles.heroStat}>
-            <Text style={styles.heroStatNumber}>50+</Text>
-            <Text style={styles.heroStatLabel}>Produtos</Text>
+            <Text style={[styles.heroStatNumber, { color: isDark ? '#e2e8f0' : '#1a202c' }]}>
+              50+
+            </Text>
+            <Text style={[styles.heroStatLabel, { color: isDark ? '#a0aec0' : '#718096' }]}>
+              Produtos
+            </Text>
           </View>
           <View style={styles.heroStat}>
-            <Text style={styles.heroStatNumber}>30+</Text>
-            <Text style={styles.heroStatLabel}>Ingredientes</Text>
+            <Text style={[styles.heroStatNumber, { color: isDark ? '#e2e8f0' : '#1a202c' }]}>
+              30+
+            </Text>
+            <Text style={[styles.heroStatLabel, { color: isDark ? '#a0aec0' : '#718096' }]}>
+              Ingredientes
+            </Text>
           </View>
           <View style={styles.heroStat}>
-            <Text style={styles.heroStatNumber}>15+</Text>
-            <Text style={styles.heroStatLabel}>Procedimentos</Text>
+            <Text style={[styles.heroStatNumber, { color: isDark ? '#e2e8f0' : '#1a202c' }]}>
+              15+
+            </Text>
+            <Text style={[styles.heroStatLabel, { color: isDark ? '#a0aec0' : '#718096' }]}>
+              Procedimentos
+            </Text>
           </View>
         </View>
       </View>
       <View style={styles.heroImageContainer}>
-        <Ionicons name="school-outline" size={120} color="rgba(255,255,255,0.1)" />
+        <Ionicons
+          name="school-outline"
+          size={120}
+          color={isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}
+        />
       </View>
     </LinearGradient>
   );
@@ -663,7 +683,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   heroBadge: {
-    color: 'rgba(255,255,255,0.9)',
     fontSize: 12,
     fontWeight: '600',
     marginBottom: 12,
@@ -671,13 +690,11 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#FFFFFF',
     marginBottom: 12,
     lineHeight: 36,
   },
   heroDescription: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
     lineHeight: 20,
     marginBottom: 20,
   },
@@ -691,11 +708,9 @@ const styles = StyleSheet.create({
   heroStatNumber: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
   },
   heroStatLabel: {
     fontSize: 11,
-    color: 'rgba(255,255,255,0.7)',
   },
   heroImageContainer: {
     position: 'absolute',

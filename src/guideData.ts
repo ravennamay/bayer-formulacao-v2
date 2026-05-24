@@ -40,6 +40,7 @@ export type Tutorial = {
   duration: string;
   level: 'Fácil' | 'Médio' | 'Avançado';
   videoUrl?: string;
+  videoThumbnail?: string;
   content?: string;
   steps?: string[];
 };
@@ -52,6 +53,7 @@ export type EPI = {
   description: string;
   importance: 'Crítico' | 'Alto' | 'Médio';
   usage: string;
+  image?: string;
   maintenanceTips?: string[];
 };
 
@@ -280,16 +282,18 @@ export const defaultProcedures: Procedure[] = [
 export const defaultTutorials: Tutorial[] = [
   {
     id: 'tut-1',
-    title: 'Introdução à Formulação Agrícola',
+    title: 'Integração de Sistema',
     icon: 'play-circle',
-    description: 'Aprenda os conceitos básicos de formulação e como começar',
-    duration: '12 min',
+    description: 'Aprenda como integrar e utilizar o sistema de formulação agrícola',
+    duration: '15 min',
     level: 'Fácil',
-    content: 'Neste tutorial, você aprenderá os princípios fundamentais de formulação agrícola, tipos de formulações e ingredientes básicos.',
+    videoUrl: 'https://www.youtube.com/watch?v=bRz-CJert2E',
+    videoThumbnail: 'https://img.youtube.com/vi/bRz-CJert2E/maxresdefault.jpg',
+    content: 'Neste tutorial, você aprenderá os princípios fundamentais de integração do sistema, tipos de formulações e como começar a utilizar a plataforma.',
     steps: [
-      'Entender tipos de formulações',
-      'Conhecer ingredientes principais',
-      'Aprender sobre proporções básicas',
+      'Entender os componentes do sistema',
+      'Conhecer o fluxo de trabalho',
+      'Aprender sobre integração de dados',
       'Praticar com um exemplo simples',
     ],
   },
@@ -301,6 +305,12 @@ export const defaultTutorials: Tutorial[] = [
     duration: '25 min',
     level: 'Avançado',
     content: 'Tutorial completo sobre técnicas avançadas de massagem, incluindo parâmetros otimizados e troubleshooting.',
+    steps: [
+      'Preparar o equipamento adequadamente',
+      'Monitorar parâmetros em tempo real',
+      'Ajustar velocidade e temperatura',
+      'Documentar e validar resultados',
+    ],
   },
   {
     id: 'tut-3',
@@ -310,74 +320,89 @@ export const defaultTutorials: Tutorial[] = [
     duration: '18 min',
     level: 'Intermediário',
     content: 'Guia passo a passo para realizar controles de qualidade efetivos e documentar resultados.',
+    steps: [
+      'Coletar amostras corretamente',
+      'Realizar testes visuais',
+      'Medir parâmetros críticos',
+      'Documentar e arquivar resultados',
+    ],
   },
 ];
 
 export const defaultEPIs: EPI[] = [
   {
     id: 'epi-1',
-    name: 'Máscara de Proteção Respiratória',
+    name: 'Capacete de Segurança',
     icon: 'shield-outline',
-    category: 'Proteção Respiratória',
-    description: 'Proteção contra pós e vapores químicos',
+    category: 'Proteção da Cabeça',
+    description: 'Proteção contra impactos e quedas de objetos',
     importance: 'Crítico',
-    usage: 'Usar durante preparo de pó, pulverização e carregamento de ingredientes',
+    usage: 'Usar durante todas as operações na área de produção e estoque',
+    image: 'https://cdn.builder.io/api/v1/image/assets%2F52e0643ca5ed4535918a276cbd09d143%2F00981bcba8e942f6ace8f37987c69488?format=webp&width=400&height=400',
     maintenanceTips: [
-      'Inspecionar vedação regularmente',
-      'Trocar filtros conforme orientação do fabricante',
-      'Armazenar em local seco',
+      'Inspecionar por rachaduras ou danos',
+      'Verificar função da jugular',
+      'Substituir conforme regulamentação',
     ],
   },
   {
     id: 'epi-2',
-    name: 'Luvas de Nitrila',
+    name: 'Óculos de Proteção',
+    icon: 'eye-outline',
+    category: 'Proteção Ocular',
+    description: 'Proteção dos olhos contra respingos, pós e partículas',
+    importance: 'Crítico',
+    usage: 'Usar durante todas as operações que envolvam líquidos ou pós',
+    image: 'https://cdn.builder.io/api/v1/image/assets%2F52e0643ca5ed4535918a276cbd09d143%2Fe933a5f2d8254cea8b9c803cd5565fb5?format=webp&width=400&height=400',
+    maintenanceTips: [
+      'Limpar regularmente com pano macio',
+      'Inspecionar lentes por danos',
+      'Armazenar em case apropriado',
+      'Substituir se houver riscos',
+    ],
+  },
+  {
+    id: 'epi-3',
+    name: 'Protetor Auricular',
+    icon: 'volume-mute-outline',
+    category: 'Proteção Auditiva',
+    description: 'Proteção contra ruído excessivo de máquinas',
+    importance: 'Alto',
+    usage: 'Usar durante operação de equipamentos de alta potência',
+    image: 'https://cdn.builder.io/api/v1/image/assets%2F52e0643ca5ed4535918a276cbd09d143%2F13b88453b5184722a3e3e8d9b4341ea0?format=webp&width=400&height=400',
+    maintenanceTips: [
+      'Verificar vedação regularmente',
+      'Lavar com água e sabão',
+      'Trocar espumas quando necessário',
+    ],
+  },
+  {
+    id: 'epi-4',
+    name: 'Luvas de Proteção',
     icon: 'hand-left-outline',
     category: 'Proteção das Mãos',
-    description: 'Proteção contra contato direto com produtos químicos',
+    description: 'Proteção contra contato com produtos químicos e abrasivos',
     importance: 'Crítico',
     usage: 'Usar em todas as operações de manipulação de produtos',
     maintenanceTips: [
       'Verificar integridade antes de usar',
       'Trocar se houver perfurações',
-      'Limpar e secar as mãos antes de colocar',
+      'Descartar adequadamente após uso',
     ],
   },
   {
-    id: 'epi-3',
-    name: 'Óculos de Proteção',
-    icon: 'eye-outline',
-    category: 'Proteção Ocular',
-    description: 'Proteção dos olhos contra respingos e partículas',
-    importance: 'Crítico',
-    usage: 'Usar durante todas as operações que envolvam líquidos ou pós',
-    maintenanceTips: [
-      'Limpar regularmente com pano macio',
-      'Inspecionar lentes por danos',
-      'Armazenar em case apropriado',
-    ],
-  },
-  {
-    id: 'epi-4',
+    id: 'epi-5',
     name: 'Avental Impermeável',
     icon: 'shirt-outline',
     category: 'Proteção do Corpo',
     description: 'Proteção do vestiário contra respingos e contaminação',
     importance: 'Alto',
-    usage: 'Usar durante preparação, carregamento e descarga',
+    usage: 'Usar durante preparação, carregamento e descarga de produtos',
     maintenanceTips: [
       'Lavar regularmente',
       'Inspecionar por desgaste',
-      'Manter apoiado adequadamente',
+      'Secar completamente antes de guardar',
     ],
-  },
-  {
-    id: 'epi-5',
-    name: 'Botas de Segurança',
-    icon: 'footsteps-outline',
-    category: 'Proteção dos Pés',
-    description: 'Proteção contra derramamentos e objetos pesados',
-    importance: 'Médio',
-    usage: 'Usar durante operações na área de produção',
   },
 ];
 
