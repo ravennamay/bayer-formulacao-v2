@@ -12,6 +12,7 @@ import {
   Alert,
   ScrollView,
   Platform,
+  Dimensions,
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,6 +30,8 @@ import StatusPill from '../../src/StatusPill';
 import ItemFormModal from '../../src/ItemFormModal';
 
 import { ProductionItem, todayISO, formatDateLabel, formatBags, SITUATIONS } from '../../src/types';
+
+const { width } = Dimensions.get('window');
 
 const buildLast14Days = (): string[] => {
   const out: string[] = [];
@@ -204,29 +207,238 @@ export default function PlanilhaScreen() {
     }
   };
 
-  const renderItem = ({ item }: { item: ProductionItem }) => (
-    <View
-      style={[
-        styles.card,
-        {
-          backgroundColor: colors.surface,
-          borderColor: colors.border,
-        },
-      ]}
-    >
-      <Text style={[styles.product, { color: colors.textPrimary }]}>{item.product}</Text>
+  const getProductColor = (product: string): string => {
+    const productColors: { [key: string]: string } = {
+      'FOX XPRO': '#00BCFF',
+      'NATIVO': '#89D329',
+      'FOX PRO': '#00BCFF',
+      'CURBIX': '#EC4899',
+      'CONNECT': '#F59E0B',
+      'BULLDOCK': '#8B5CF6',
+      'ALSYSTIN': '#10B981',
+      'OBERON': '#06B6D4',
+      'PREMIER PLUS': '#F97316',
+      'PROVADO': '#EF4444',
+      'SPHERE MAX': '#6366F1',
+      'FINISH': '#A78BFA',
+      'SOBERAN': '#14B8A6',
+    };
+    return productColors[product] || colors.primary;
+  };
 
-      <Text style={[styles.batch, { color: colors.textSecondary }]}>Lote {item.batch}</Text>
+  const renderItem = ({ item }: { item: ProductionItem }) => {
+    const productColor = getProductColor(item.product);
 
-      <View style={styles.cardBottom}>
-        <StatusPill label={item.situation} />
-        <StatusPill label={item.material_status} />
-      </View>
-    </View>
-  );
+    return (
+      <TouchableOpacity
+        onPress={() => {
+          setEditing(item);
+          setFormVisible(true);
+        }}
+        activeOpacity={0.6}
+      >
+        <View
+          style={[
+            styles.modernCard,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          {/* BADGE COLOR HEADER */}
+          <View
+            style={[
+              styles.cardHeaderBar,
+              { backgroundColor: productColor },
+            ]}
+          />
+
+          {/* MAIN CONTENT */}
+          <View style={styles.cardMainContent}>
+            {/* PRODUCT NAME WITH COLOR INDICATOR */}
+            <View style={styles.productHeader}>
+              <View
+                style={[
+                  styles.productBadge,
+                  { backgroundColor: productColor + '20', borderColor: productColor },
+                ]}
+              >
+                <Text style={[styles.productAbbr, { color: productColor }]}>
+                  {item.product_abbr || item.product.substring(0, 3).toUpperCase()}
+                </Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.productName, { color: colors.textPrimary }]}>
+                  {item.product}
+                </Text>
+                <Text style={[styles.batchInfo, { color: colors.textSecondary }]}>
+                  Lote {item.batch}
+                </Text>
+              </View>
+            </View>
+
+            {/* SECONDARY INFO */}
+            <View style={styles.infoRow}>
+              <View style={styles.infoPair}>
+                <Text style={[styles.infoLabel, { color: colors.textTertiary }]}>SC</Text>
+                <Text style={[styles.infoValue, { color: colors.textPrimary }]}>
+                  {item.sc}
+                </Text>
+              </View>
+              <View style={styles.infoPair}>
+                <Text style={[styles.infoLabel, { color: colors.textTertiary }]}>Unidade</Text>
+                <Text style={[styles.infoValue, { color: colors.textPrimary }]}>
+                  {item.unit}
+                </Text>
+              </View>
+            </View>
+
+            {/* STATUS ROW */}
+            <View style={styles.statusRow}>
+              <StatusPill label={item.situation} />
+              {item.material_status && <StatusPill label={item.material_status} />}
+            </View>
+
+            {/* OBSERVATION IF EXISTS */}
+            {item.observation && (
+              <Text style={[styles.observation, { color: colors.textSecondary }]}>
+                💬 {item.observation}
+              </Text>
+            )}
+          </View>
+
+          {/* ACTION BUTTON */}
+          <TouchableOpacity
+            onPress={() => handleDelete(item.id)}
+            style={[styles.deleteBtn, { backgroundColor: colors.danger + '15' }]}
+          >
+            <Ionicons name="trash-outline" size={18} color={colors.danger} />
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const situationOptions = ['Todos', ...SITUATIONS];
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+      {/* HEADER */}
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <View>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
+            📊 Planilha
+          </Text>
+          <Text style={[styles.headerDate, { color: colors.textSecondary }]}>
+            {formatDateLabel(date)}
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={exportExcel}
+          style={[styles.exportBtn, { backgroundColor: colors.success }]}
+        >
+          <Ionicons name="document-text" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
+
+      {/* STATS */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.statsScroll}
+      >
+        <StatCard
+          label="Total"
+          value={String(stats.total)}
+          icon="cube"
+          color="#00BCFF"
+          colors={colors}
+        />
+        <StatCard
+          label="Recebido"
+          value={String(stats.recebido)}
+          icon="checkmark-circle"
+          color="#10B981"
+          colors={colors}
+        />
+        <StatCard
+          label="A Preparar"
+          value={String(stats.aPreparar)}
+          icon="time"
+          color="#F59E0B"
+          colors={colors}
+        />
+        <StatCard
+          label="Preparado"
+          value={String(stats.preparado)}
+          icon="checkmark-done"
+          color="#8B5CF6"
+          colors={colors}
+        />
+        <StatCard
+          label="Fábrica"
+          value={String(stats.fabrica)}
+          icon="factory"
+          color="#EC4899"
+          colors={colors}
+        />
+      </ScrollView>
+
+      {/* SEARCH AND FILTER */}
+      <View style={styles.searchContainer}>
+        <View
+          style={[
+            styles.searchBox,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
+          <Ionicons name="search" size={18} color={colors.textTertiary} />
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Buscar produto, lote..."
+            placeholderTextColor={colors.textTertiary}
+            style={[styles.searchInput, { color: colors.textPrimary }]}
+          />
+          {search && (
+            <TouchableOpacity onPress={() => setSearch('')}>
+              <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* SITUATION FILTER */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
+          {situationOptions.map((sit) => (
+            <TouchableOpacity
+              key={sit}
+              onPress={() => setSitFilter(sit)}
+              style={[
+                styles.filterBtn,
+                {
+                  backgroundColor: sitFilter === sit ? colors.primary : colors.surface,
+                  borderColor: sitFilter === sit ? colors.primary : colors.border,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.filterText,
+                  {
+                    color: sitFilter === sit ? '#000' : colors.textSecondary,
+                    fontWeight: sitFilter === sit ? '700' : '600',
+                  },
+                ]}
+              >
+                {sit}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* LIST */}
       <ViewShot
         ref={viewShotRef}
         options={{
@@ -238,7 +450,14 @@ export default function PlanilhaScreen() {
       >
         {loading ? (
           <View style={styles.empty}>
-            <ActivityIndicator color={colors.primary} />
+            <ActivityIndicator color={colors.primary} size="large" />
+          </View>
+        ) : filtered.length === 0 ? (
+          <View style={styles.empty}>
+            <Ionicons name="inbox" size={48} color={colors.textTertiary} />
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+              Nenhum material encontrado
+            </Text>
           </View>
         ) : (
           <FlatList
@@ -253,13 +472,14 @@ export default function PlanilhaScreen() {
               />
             }
             contentContainerStyle={{
-              padding: 16,
+              padding: 12,
               paddingBottom: 120,
             }}
           />
         )}
       </ViewShot>
 
+      {/* FAB */}
       <TouchableOpacity
         style={[styles.fab, { backgroundColor: colors.primary }]}
         onPress={() => {
@@ -281,38 +501,228 @@ export default function PlanilhaScreen() {
   );
 }
 
+function StatCard({ label, value, icon, color, colors }: any) {
+  return (
+    <View
+      style={[
+        styles.statCard,
+        { backgroundColor: colors.surface, borderColor: colors.border },
+      ]}
+    >
+      <View style={[styles.statIcon, { backgroundColor: color + '20' }]}>
+        <Ionicons name={icon} size={22} color={color} />
+      </View>
+      <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+        {label}
+      </Text>
+      <Text style={[styles.statValue, { color: color }]}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
   },
 
-  card: {
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    marginBottom: 12,
-    gap: 12,
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
   },
 
-  product: {
-    fontSize: 16,
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+
+  headerDate: {
+    fontSize: 12,
+  },
+
+  exportBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  statsScroll: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+
+  statCard: {
+    width: 100,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginRight: 8,
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  statIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  statLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+
+  statValue: {
+    fontSize: 18,
     fontWeight: '700',
   },
 
-  batch: {
-    fontSize: 13,
+  searchContainer: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
   },
 
-  cardBottom: {
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 8,
+  },
+
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+  },
+
+  filterScroll: {
+    gap: 6,
+  },
+
+  filterBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginRight: 6,
+  },
+
+  filterText: {
+    fontSize: 12,
+  },
+
+  modernCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 10,
+    overflow: 'hidden',
+  },
+
+  cardHeaderBar: {
+    height: 4,
+  },
+
+  cardMainContent: {
+    padding: 14,
+    gap: 12,
+  },
+
+  productHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+
+  productBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  productAbbr: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  productName: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+
+  batchInfo: {
+    fontSize: 12,
+  },
+
+  infoRow: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+
+  infoPair: {
+    flex: 1,
+  },
+
+  infoLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+
+  infoValue: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  statusRow: {
     flexDirection: 'row',
     gap: 8,
     flexWrap: 'wrap',
+  },
+
+  observation: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+
+  deleteBtn: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   empty: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 12,
+  },
+
+  emptyText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 
   fab: {

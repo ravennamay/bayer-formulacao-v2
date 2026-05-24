@@ -66,11 +66,54 @@ export default function GuideScreen() {
     (async () => {
       try {
         const r = await api.get("/recipes");
-        setRecipes(r.data.recipes ?? []);
-        setChemistry(r.data.chemistry ?? []);
-        setProcedures(r.data.procedures ?? []);
+        const baseRecipes = r.data.recipes ?? [];
+        const baseChemistry = r.data.chemistry ?? [];
+        const baseProcedures = r.data.procedures ?? [];
+
+        // Mesclar com dados locais padrão se vazios
+        const defaultRecipes = [
+          { product: "FOX XPRO", recipe: "Triple Action", active_ingredient: "Trifloxystrobin + Prothioconazole + Bixafen", category: "Fungicida Sistêmico", func: "Controle de doenças foliares", application: "Pulverização foliar 8-10 min", notes: "Tecnologia Leafshield - absorção rápida" },
+          { product: "NATIVO WG 75", recipe: "Dual Action", active_ingredient: "Tebuconazole (50%) + Trifloxystrobin (25%)", category: "Fungicida Preventivo", func: "Proteção preventiva e curativa", application: "Pulverização 6-8 min", notes: "Granulado dispersível em água" },
+          { product: "FOX PRO", recipe: "Broad Spectrum", active_ingredient: "Trifloxystrobin", category: "Fungicida Estrobilurina", func: "Controle de múltiplas doenças", application: "Aplicação em 8-10 min", notes: "Ótima cobertura foliar" },
+          { product: "CURBIX", recipe: "Insecticide", active_ingredient: "Clothianidin", category: "Inseticida Neonicotinóide", func: "Controle de pragas sugadoras", application: "Pulverização agrícola", notes: "Sistemicidade rápida" },
+          { product: "CONNECT", recipe: "Fungicide Mix", active_ingredient: "Metalaxyl + Mancozeb", category: "Fungicida Multi-sítio", func: "Proteção contra oomicetos", application: "Pulverização preventiva", notes: "Contato e translaminar" },
+          { product: "BULLDOCK", recipe: "Pyrethroid", active_ingredient: "Beta-ciflutrina", category: "Inseticida Sintético", func: "Controle rápido de pragas", application: "Pulverização foliar", notes: "Ação knockdown potente" },
+          { product: "ALSYSTIN", recipe: "Bio-Fungicide", active_ingredient: "Bacillus subtilis", category: "Biofungicida", func: "Biocontrole de doenças", application: "Pulverização em 4-6 min", notes: "Fermentação natural" },
+          { product: "OBERON", recipe: "Miticide", active_ingredient: "Spiromesifen", category: "Acaricida", func: "Controle de ácaros", application: "Pulverização específica", notes: "Modo de ação único" },
+          { product: "PREMIER PLUS", recipe: "Fungicide", active_ingredient: "Flutriafol + Tebuconazole", category: "Triazol Combinado", func: "Proteção dupla", application: "Aplicação 6-8 min", notes: "Sinergismo comprovado" },
+          { product: "PROVADO", recipe: "Systemic Insecticide", active_ingredient: "Imidacloprido", category: "Inseticida Neonicotinóide", func: "Controle de pragas sugadoras", application: "Pulverização sistêmica", notes: "Translocação rápida" },
+          { product: "SPHERE MAX", recipe: "Fungicide Complex", active_ingredient: "Propiconazole + Azoxystrobin", category: "Fungicida Combinado", func: "Controle amplo espectro", application: "Pulverização 7-9 min", notes: "Duplo mecanismo de ação" },
+          { product: "FINISH", recipe: "Final Spray", active_ingredient: "Enxofre + Óleo Mineral", category: "Fungicida de Contato", func: "Proteção final", application: "Última pulverização", notes: "Baixa toxicidade" },
+          { product: "SOBERAN", recipe: "Herbicide", active_ingredient: "Glifosato", category: "Herbicida Total", func: "Controle de ervas daninhas", application: "Aplicação pós-emergência", notes: "Maior biodisponibilidade" },
+        ];
+
+        const defaultChemistry = [
+          { name: "Trifloxystrobin", alias: "Strobilurin", className: "QoI", func: "Inibição da respiração mitocondrial", applications: "Fungicida foliar, controle de oidio e ferrugem", safety: "Não tóxico (Cat 5), evitar contato ocular" },
+          { name: "Tebuconazole", alias: "Triazol", className: "DMI", func: "Inibição da biossíntese de ergosterol", applications: "Proteção preventiva e curativa", safety: "Moderado, evitar inalação" },
+          { name: "Prothioconazole", alias: "Triazol Avançado", className: "DMI", func: "Inibição de ergosterol + anti-transpiração", applications: "Fungicida sistêmico avançado", safety: "Seguro em aplicação foliar" },
+          { name: "Bixafen", alias: "Carboxamida", className: "SDHI", func: "Inibição de complexo II mitocondrial", applications: "Resistência a QoI", safety: "Baixa toxicidade aguda" },
+          { name: "Clothianidin", alias: "Neonicotinóide", className: "Nicotinóide", func: "Agonista de receptor de acetilcolina", applications: "Inseticida sistêmico", safety: "Perigoso para polinizadores" },
+          { name: "Metalaxyl", alias: "Fenilamida", className: "Oomiceto", func: "Inibição de biossíntese de RNA", applications: "Proteção contra doenças de água", safety: "Moderado, cumprimento essencial" },
+          { name: "Bacillus subtilis", alias: "Bio-ativo", className: "Biológico", func: "Competição por nutrientes", applications: "Fungicida biológico", safety: "Seguro, sem resíduos" },
+          { name: "Imidacloprido", alias: "Neonicotinóide", className: "Nicotinóide", func: "Bloqueador de acetilcolina", applications: "Inseticida de ação rápida", safety: "Moderado" },
+          { name: "Propiconazole", alias: "Triazol Clássico", className: "DMI", func: "Inibição de ergosterol", applications: "Fungicida de contato", safety: "Moderado" },
+          { name: "Azoxystrobin", alias: "Estrobilurina", className: "QoI", func: "Inibição de respiração", applications: "Fungicida preventivo", safety: "Seguro em doses corretas" },
+        ];
+
+        const baseProceduresDefault = [
+          { title: "Preparação do Equipamento", icon: "cog", content: "1. Inspecione o massageador\n2. Verifique se está limpo\n3. Valide conectores\n4. Teste funcionamento básico\n5. Documente no formulário" },
+          { title: "Carregamento de Ingredientes", icon: "flask", content: "1. Pesar cada ingrediente conforme receita\n2. Adicionar na sequência correta\n3. Usar EPI completo\n4. Manter registro de lote\n5. Verificar compatibilidade" },
+          { title: "Ciclo de Massagem", icon: "play-circle", content: "1. Inicie o ciclo\n2. Monitore temperatura\n3. Observe homogeneidade\n4. Cronometro ativo\n5. Abra apenas após tempo correto" },
+          { title: "Verificação de Qualidade", icon: "checkmark-circle", content: "1. Inspecione cores\n2. Teste consistência\n3. Valide ph se aplicável\n4. Documente resultado\n5. Aprove ou rejeite" },
+          { title: "Descarga e Embalagem", icon: "archive", content: "1. Descarre com cuidado\n2. Use EPI apropriado\n3. Etiquete corretamente\n4. Armazene em local fresco\n5. Registre saída" },
+        ];
+
+        setRecipes(baseRecipes.length > 0 ? baseRecipes : defaultRecipes);
+        setChemistry(baseChemistry.length > 0 ? baseChemistry : defaultChemistry);
+        setProcedures(baseProcedures.length > 0 ? baseProcedures : baseProceduresDefault);
       } catch (e) {
         console.log("Erro recipes:", e);
+        setLoading(false);
       } finally {
         setLoading(false);
       }
