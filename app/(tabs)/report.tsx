@@ -18,7 +18,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../../src/auth';
 import { useTheme } from '../../src/theme';
-import { formatDateLabel, todayISO } from '../../src/types';
+import { formatDateLabel, todayISO, ProductionItem } from '../../src/types';
+import { formatReportText } from '../../src/reportFormatter';
 
 const buildLast14Days = (): string[] => {
   const out: string[] = [];
@@ -42,7 +43,6 @@ export default function ReportScreen() {
   const { colors } = useTheme();
   const [date, setDate] = useState(todayISO());
   const [text, setText] = useState('');
-  const [greeting, setGreeting] = useState('');
   const [count, setCount] = useState(0);
   const [extraObs, setExtraObs] = useState('');
   const [loading, setLoading] = useState(false);
@@ -50,14 +50,15 @@ export default function ReportScreen() {
   const generate = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await api.post('/reports/whatsapp', {
-        date,
-        extra_observations: extraObs,
+      const r = await api.get('/items', {
+        params: { date },
       });
 
-      setText(r.data.text || '');
-      setGreeting(r.data.greeting || '');
-      setCount(r.data.count || 0);
+      const items: ProductionItem[] = r.data || [];
+      const formattedText = formatReportText(items, extraObs);
+
+      setText(formattedText);
+      setCount(items.length);
     } catch {
       Alert.alert('Erro', 'Falha ao gerar relatório');
     } finally {
@@ -107,7 +108,7 @@ export default function ReportScreen() {
           <View>
             <Text style={[styles.title, { color: colors.textPrimary }]}>Relatório WhatsApp</Text>
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-              {formatDateLabel(date)} · {count} {count === 1 ? 'item' : 'itens'} · {greeting}
+              {formatDateLabel(date)} · {count} {count === 1 ? 'item' : 'itens'}
             </Text>
           </View>
 
