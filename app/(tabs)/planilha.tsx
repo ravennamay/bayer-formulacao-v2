@@ -214,11 +214,39 @@ export default function PlanilhaScreen() {
         },
       ]}
     >
-      <Text style={[styles.product, { color: colors.textPrimary }]}>{item.product}</Text>
+      {/* Card Header with Badge and Icons */}
+      <View style={styles.cardHeader}>
+        <View style={styles.badgeAndTitle}>
+          <View style={[styles.unitBadge, { backgroundColor: colors.primary }]}>
+            <Text style={styles.badgeText}>{item.unit.slice(0, 3).toUpperCase()}</Text>
+          </View>
+          <View style={styles.titleBlock}>
+            <Text style={[styles.productTitle, { color: colors.textPrimary }]}>
+              {item.product.toUpperCase()}
+            </Text>
+            <Text style={[styles.scInfo, { color: colors.textSecondary }]}>
+              {item.sc}
+            </Text>
+          </View>
+        </View>
 
-      <Text style={[styles.batch, { color: colors.textSecondary }]}>Lote {item.batch}</Text>
+        <View style={styles.headerActions}>
+          <TouchableOpacity>
+            <Ionicons name="pencil" size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => handleDelete(item.id)}>
+            <Ionicons name="trash" size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+      </View>
 
-      <View style={styles.cardBottom}>
+      {/* Card Info */}
+      <Text style={[styles.batchInfo, { color: colors.textSecondary }]}>
+        Lote {item.batch} • {formatBags(item.quantity)}
+      </Text>
+
+      {/* Card Footer with Status Pills */}
+      <View style={styles.cardFooter}>
         <StatusPill label={item.situation} />
         <StatusPill label={item.material_status} />
       </View>
@@ -487,19 +515,64 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginHorizontal: 16,
     marginBottom: 12,
+  },
+
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+
+  badgeAndTitle: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    flex: 1,
+  },
+
+  unitBadge: {
+    width: 42,
+    height: 42,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  badgeText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fff',
+  },
+
+  titleBlock: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+
+  productTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+
+  scInfo: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+
+  headerActions: {
+    flexDirection: 'row',
     gap: 12,
   },
 
-  product: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-
-  batch: {
+  batchInfo: {
     fontSize: 13,
+    fontWeight: '500',
+    marginBottom: 12,
   },
 
-  cardBottom: {
+  cardFooter: {
     flexDirection: 'row',
     gap: 8,
     flexWrap: 'wrap',
