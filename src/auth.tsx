@@ -2,7 +2,7 @@ import axios, { AxiosInstance } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-const BASE = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'http://192.168.1.65:8000';
+const BASE = process.env.EXPO_PUBLIC_BACKEND_URL;
 console.log('BASE:', process.env.EXPO_PUBLIC_BACKEND_URL);
 const TOKEN_KEY = 'bayer_auth_token';
 
