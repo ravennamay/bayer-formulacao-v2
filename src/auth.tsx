@@ -2,7 +2,12 @@ import axios, { AxiosInstance } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-const BASE = process.env.EXPO_PUBLIC_BACKEND_URL;
+const BASE = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://bayer-formulacao.onrender.com';
+
+if (!BASE) {
+  throw new Error('Backend URL não configurada');
+}
+
 console.log('BASE:', process.env.EXPO_PUBLIC_BACKEND_URL);
 const TOKEN_KEY = 'bayer_auth_token';
 
@@ -25,8 +30,8 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-export const api: AxiosInstance = axios.create({
-  baseURL: `${BASE}/api`,
+export const api = axios.create({
+  baseURL: `${BASE.replace(/\/$/, '')}/api`,
   timeout: 20000,
 });
 
