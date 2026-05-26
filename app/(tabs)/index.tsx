@@ -32,6 +32,13 @@ const NAV_CARDS = [
 
 const QUICK_CARDS = [
   {
+    id: 'tabela',
+    title: 'Tabela de Turnos',
+    subtitle: 'Sua escala',
+    icon: 'calendar',
+    route: '/tabela-turno',
+  },
+  {
     id: 'guia',
     title: 'Guia de Formulação',
     subtitle: 'Produtos e procedimentos',

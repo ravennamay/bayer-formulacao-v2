@@ -9,6 +9,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -161,10 +162,163 @@ export default function ItemFormModal({ visible, initial, date, onClose, onSaved
           </View>
 
           <ScrollView contentContainerStyle={{ padding: 16, gap: 14 }}>
+            {/* UNIDADE */}
             <Field label="Unidade" colors={colors}>
               <Chips options={[...UNITS]} value={unit} onChange={setUnit} colors={colors} />
             </Field>
 
+            {/* SC */}
+            <Field label="SC" colors={colors}>
+              <Chips options={[...SCS]} value={sc} onChange={setSc} colors={colors} />
+            </Field>
+
+            {/* PRODUTO */}
+            <Field label="Produto" colors={colors}>
+              <View
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.surfaceElevated,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                <Ionicons name="flask-outline" size={16} color={colors.textSecondary} />
+                <TextInput
+                  placeholder="Digite ou selecione"
+                  value={product}
+                  onChangeText={setProduct}
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                  style={[styles.inputText, { color: colors.textPrimary }]}
+                  placeholderTextColor={colors.textTertiary}
+                />
+              </View>
+              {showSuggestions && product && filteredProducts.length > 0 && (
+                <View style={[styles.suggestions, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                  {filteredProducts.slice(0, 5).map(p => (
+                    <TouchableOpacity
+                      key={p.name}
+                      onPress={() => {
+                        setProduct(p.name);
+                        setShowSuggestions(false);
+                      }}
+                      style={[styles.suggestionItem, { borderBottomColor: colors.border }]}
+                    >
+                      <Text style={{ color: colors.textPrimary, fontSize: 14 }}>{p.name}</Text>
+                      <Text style={{ color: colors.textSecondary, fontSize: 12 }}>{p.abbr}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </Field>
+
+            {/* LOTE */}
+            <Field label="Lote" colors={colors}>
+              <View
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: colors.surfaceElevated,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                <Ionicons name="barcode-outline" size={16} color={colors.textSecondary} />
+                <TextInput
+                  placeholder="Ex: 001/26"
+                  value={batch}
+                  onChangeText={setBatch}
+                  style={[styles.inputText, { color: colors.textPrimary }]}
+                  placeholderTextColor={colors.textTertiary}
+                />
+              </View>
+            </Field>
+
+            {/* QUANTIDADE */}
+            <View style={styles.row}>
+              <View style={{ flex: 1 }}>
+                <Field label="Quantidade" colors={colors}>
+                  <View
+                    style={[
+                      styles.input,
+                      {
+                        backgroundColor: colors.surfaceElevated,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <Ionicons name="cube-outline" size={16} color={colors.textSecondary} />
+                    <TextInput
+                      placeholder="0"
+                      value={quantity}
+                      onChangeText={setQuantity}
+                      keyboardType="decimal-pad"
+                      style={[styles.inputText, { color: colors.textPrimary }]}
+                      placeholderTextColor={colors.textTertiary}
+                    />
+                  </View>
+                </Field>
+              </View>
+
+              <View style={{ flex: 1, marginLeft: 8 }}>
+                <Field label="Unidade" colors={colors}>
+                  <Chips
+                    options={['kg', 'bag', 'l', 'un']}
+                    value={quantityUnit}
+                    onChange={setQuantityUnit}
+                    colors={colors}
+                  />
+                </Field>
+              </View>
+            </View>
+
+            {/* STATUS MATERIAL */}
+            <Field label="Status do Material" colors={colors}>
+              <Chips
+                options={MATERIAL_STATUS}
+                value={materialStatus}
+                onChange={setMaterialStatus}
+                colors={colors}
+              />
+            </Field>
+
+            {/* SITUAÇÃO */}
+            <Field label="Situação" colors={colors}>
+              <Chips
+                options={SITUATIONS}
+                value={situation}
+                onChange={setSituation}
+                colors={colors}
+              />
+            </Field>
+
+            {/* OBSERVAÇÃO */}
+            <Field label="Observação (Opcional)" colors={colors}>
+              <View
+                style={[
+                  styles.input,
+                  styles.inputLarge,
+                  {
+                    backgroundColor: colors.surfaceElevated,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                <Ionicons name="document-text-outline" size={16} color={colors.textSecondary} />
+                <TextInput
+                  placeholder="Adicione notas..."
+                  value={observation}
+                  onChangeText={setObservation}
+                  multiline
+                  numberOfLines={3}
+                  style={[styles.inputText, styles.inputTextLarge, { color: colors.textPrimary }]}
+                  placeholderTextColor={colors.textTertiary}
+                />
+              </View>
+            </Field>
+
+            {/* BOTÃO SALVAR */}
             <TouchableOpacity
               onPress={save}
               style={[styles.saveBtn, { backgroundColor: colors.primary }]}
@@ -242,10 +396,49 @@ function Chips({
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   sheet: { height: '90%', borderTopLeftRadius: 24, borderTopRightRadius: 24 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', padding: 16 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1 },
   title: { fontSize: 18, fontWeight: '700' },
-  label: { fontSize: 12, marginBottom: 8 },
+  label: { fontSize: 12, fontWeight: '600', marginBottom: 8 },
   chip: { padding: 10, borderRadius: 10, marginRight: 8 },
+  input: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 48,
+    gap: 8,
+  },
+  inputText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  inputLarge: {
+    height: 100,
+    paddingVertical: 10,
+    alignItems: 'flex-start',
+  },
+  inputTextLarge: {
+    flex: 1,
+    textAlignVertical: 'top',
+  },
+  suggestions: {
+    borderWidth: 1,
+    borderRadius: 8,
+    marginTop: 4,
+    overflow: 'hidden',
+  },
+  suggestionItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   saveBtn: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -253,5 +446,6 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 12,
     gap: 8,
+    marginTop: 16,
   },
 });
