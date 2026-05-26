@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import BayerLogo from '../../src/BayerLogo';
+import BayerLogo from '../../../src/BayerLogo';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -7,15 +7,14 @@ import {
   Linking,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { api, useAuth } from '../../src/auth';
-import { useTheme } from '../../src/theme';
+import { api, useAuth } from '../../../src/auth';
+import { useTheme } from '../../../src/theme';
 
 type Product = { name: string; abbr: string };
 
@@ -25,8 +24,6 @@ export default function SettingsScreen() {
   const router = useRouter();
 
   const [products, setProducts] = useState<Product[]>([]);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [compactView, setCompactView] = useState(false);
 
   const loadProducts = useCallback(async () => {
     if (isDemo) return;
@@ -95,7 +92,8 @@ export default function SettingsScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <Section title="Conta" colors={colors}>
-          <View
+          <TouchableOpacity
+            onPress={() => router.push('./account')}
             style={[
               styles.userBox,
               { backgroundColor: colors.surface, borderColor: colors.border },
@@ -128,7 +126,7 @@ export default function SettingsScreen() {
                 {isDemo ? 'DEMO' : (user?.role || 'USER').toUpperCase()}
               </Text>
             </View>
-          </View>
+          </TouchableOpacity>
           {isDemo && (
             <View
               style={[
@@ -146,7 +144,7 @@ export default function SettingsScreen() {
 
         <Section title="Aparencia" colors={colors}>
           <TouchableOpacity
-            onPress={toggle}
+            onPress={() => router.push('./appearance')}
             style={[styles.row, { backgroundColor: colors.surface, borderColor: colors.border }]}
           >
             <Ionicons name={mode === 'dark' ? 'moon' : 'sunny'} size={20} color={colors.primary} />
@@ -156,7 +154,7 @@ export default function SettingsScreen() {
               </Text>
               <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Toque para alternar</Text>
             </View>
-            <Ionicons name="swap-horizontal" size={18} color={colors.textTertiary} />
+            <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
           </TouchableOpacity>
         </Section>
 
@@ -217,7 +215,7 @@ export default function SettingsScreen() {
         <Section title="Catalogo de Produtos" colors={colors}>
           <TouchableOpacity
             style={[styles.catalogButton, { backgroundColor: colors.primary }]}
-            onPress={() => router.push('/(tabs)/planilha')}
+            onPress={() => router.push('/(tabs)/products')}
           >
             <Ionicons name="folder-open-outline" size={18} color="#fff" />
             <Text style={{ color: '#fff', fontWeight: '700', flex: 1 }}>Ver Catálogo Completo</Text>
