@@ -1,0 +1,725 @@
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { useTheme } from '../../src/theme';
+
+type ShiftKey = 'A' | 'B' | 'C' | 'D' | 'E';
+type CellValue = '6' | '14' | '22' | 'F';
+
+const SHIFTS: ShiftKey[] = ['A', 'B', 'C', 'D', 'E'];
+
+const SHIFT_OFFSETS: Record<ShiftKey, number> = { B: 0, A: 2, D: 4, C: 6, E: 8 };
+
+const CYCLE: CellValue[] = ['6', '6', '14', '14', '22', '22', 'F', 'F', 'F', 'F'];
+
+const EPOCH = new Date(2026, 4, 23);
+
+function daysBetween(a: Date, b: Date): number {
+  const MS = 86400000;
+  const utcA = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate());
+  const utcB = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate());
+  return Math.round((utcA - utcB) / MS);
+}
+
+function getShiftValue(date: Date, shift: ShiftKey): CellValue {
+  const diff = daysBetween(date, EPOCH);
+  const pos = (((diff + SHIFT_OFFSETS[shift]) % 10) + 10) % 10;
+  return CYCLE[pos];
+}
+
+function getCellTheme(value: CellValue) {
+  switch (value) {
+    case '6':
+      return {
+        text: '#84CC16',
+        bg: 'rgba(132,204,22,0.10)',
+        border: 'rgba(132,204,22,0.30)',
+        label: 'Manhã',
+        icon: 'sunny-outline',
+      };
+    case '14':
+      return {
+        text: '#06B6D4',
+        bg: 'rgba(6,182,212,0.10)',
+        border: 'rgba(6,182,212,0.30)',
+        label: 'Tarde',
+        icon: 'partly-sunny-outline',
+      };
+    case '22':
+      return {
+        text: '#A855F7',
+        bg: 'rgba(168,85,247,0.10)',
+        border: 'rgba(168,85,247,0.30)',
+        label: 'Noite',
+        icon: 'moon-outline',
+      };
+    default:
+      return {
+        text: '#3B82F6',
+        bg: 'rgba(59,130,246,0.08)',
+        border: 'rgba(59,130,246,0.22)',
+        label: 'Folga',
+        icon: 'bed-outline',
+      };
+  }
+}
+
+const MONTHS_PT = [
+  'Janeiro',
+  'Fevereiro',
+  'Março',
+  'Abril',
+  'Maio',
+  'Junho',
+  'Julho',
+  'Agosto',
+  'Setembro',
+  'Outubro',
+  'Novembro',
+  'Dezembro',
+];
+const WEEKDAYS_PT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+function formatDate(d: Date): string {
+  return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getFullYear()).slice(-2)}`;
+}
+
+function isSameDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function getMonthDays(year: number, month: number): Date[] {
+  const days: Date[] = [];
+  const last = new Date(year, month + 1, 0).getDate();
+  for (let d = 1; d <= last; d++) days.push(new Date(year, month, d));
+  return days;
+}
+
+const STORAGE_KEY = 'bayer_my_shift';
+const MIN_YEAR = 2024;
+const MAX_YEAR = 2035;
+
+export default function TabelaTurnoScreen() {
+  const { colors } = useTheme();
+  const now = new Date();
+  const [myShift, setMyShift] = useState<ShiftKey>('C');
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth());
+  const [showYearPicker, setShowYearPicker] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const todayY = useRef(0);
+
+  useEffect(() => {
+    AsyncStorage.getItem(STORAGE_KEY)
+      .then(v => {
+        if (v && SHIFTS.includes(v as ShiftKey)) setMyShift(v as ShiftKey);
+      })
+      .catch(() => {});
+  }, []);
+
+  const onSelectShift = useCallback((s: ShiftKey) => {
+    setMyShift(s);
+    AsyncStorage.setItem(STORAGE_KEY, s).catch(() => {});
+  }, []);
+
+  const days = useMemo(() => getMonthDays(year, month), [year, month]);
+
+  const goPrev = () => {
+    if (month === 0 && year > MIN_YEAR) {
+      setYear(year - 1);
+      setMonth(11);
+    } else if (month > 0) setMonth(month - 1);
+  };
+
+  const goNext = () => {
+    if (month === 11 && year < MAX_YEAR) {
+      setYear(year + 1);
+      setMonth(0);
+    } else if (month < 11) setMonth(month + 1);
+  };
+
+  const goToday = () => {
+    setYear(now.getFullYear());
+    setMonth(now.getMonth());
+    setTimeout(
+      () => scrollRef.current?.scrollTo({ y: Math.max(0, todayY.current - 60), animated: true }),
+      200
+    );
+  };
+
+  const monthSummary = useMemo(() => {
+    const counts = { '6': 0, '14': 0, '22': 0, F: 0 };
+    days.forEach(d => counts[getShiftValue(d, myShift)]++);
+    return counts;
+  }, [days, myShift]);
+
+  const nextShift = useMemo(() => {
+    const today = new Date();
+    const todayValue = getShiftValue(today, myShift);
+    let foundStartIndex = 0;
+    let foundValue = todayValue;
+    for (let i = 0; i < 15; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      const v = getShiftValue(d, myShift);
+      if ((todayValue === 'F' && v !== 'F') || (todayValue !== 'F' && v === 'F')) {
+        foundStartIndex = i;
+        foundValue = v;
+        break;
+      }
+    }
+    const targetDate = new Date(today);
+    targetDate.setDate(today.getDate() + foundStartIndex);
+    return { todayValue, nextValue: foundValue, nextDate: targetDate, daysUntil: foundStartIndex };
+  }, [myShift]);
+
+  return (
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: colors.surface, borderBottomColor: colors.border },
+        ]}
+      >
+        <View style={styles.headerRow}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            hitSlop={10}
+            style={[styles.iconBtn, { backgroundColor: colors.surfaceElevated }]}
+          >
+            <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
+          </TouchableOpacity>
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Tabela de Turno</Text>
+            <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
+              Escala 6x4 · Bayer Belford Roxo
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={goToday}
+            hitSlop={10}
+            style={[styles.iconBtn, { backgroundColor: colors.surfaceElevated }]}
+          >
+            <Ionicons name="calendar-outline" size={20} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <ScrollView
+        ref={scrollRef}
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.section}>
+          <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>MEU TURNO</Text>
+          <View style={styles.shiftPickerRow}>
+            {SHIFTS.map(s => {
+              const active = s === myShift;
+              return (
+                <TouchableOpacity
+                  key={s}
+                  onPress={() => onSelectShift(s)}
+                  activeOpacity={0.8}
+                  style={[
+                    styles.shiftChip,
+                    {
+                      borderColor: active ? colors.primary : colors.border,
+                      backgroundColor: active ? colors.primary : colors.surface,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={{
+                      color: active ? '#fff' : colors.textSecondary,
+                      fontWeight: '800',
+                      fontSize: 15,
+                    }}
+                  >
+                    {s}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <View style={styles.nextCardWrap}>
+            <LinearGradient
+              colors={
+                nextShift.todayValue !== 'F'
+                  ? ['#0FA4AF', '#007B82', '#005F73']
+                  : ['#1E40AF', '#1E3A8A', '#172554']
+              }
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.nextCard}
+            >
+              <View style={styles.nextCardTop}>
+                <View style={styles.nextBadge}>
+                  <Text style={styles.nextBadgeText}>TURNO {myShift}</Text>
+                </View>
+                <View style={[styles.nextValuePill, { borderColor: 'rgba(255,255,255,0.4)' }]}>
+                  <Ionicons name={getCellTheme(nextShift.todayValue).icon} size={14} color="#fff" />
+                  <Text style={styles.nextValuePillText}>{nextShift.todayValue}</Text>
+                </View>
+              </View>
+              <Text style={styles.nextHeadline}>
+                Você está em {getCellTheme(nextShift.todayValue).label}
+              </Text>
+              <Text style={styles.nextSubline}>
+                {nextShift.daysUntil === 0
+                  ? 'a partir de agora'
+                  : nextShift.daysUntil === 1
+                    ? 'a partir de amanhã'
+                    : `nos próximos ${nextShift.daysUntil} dias`}
+              </Text>
+              <View style={styles.nextDivider} />
+              <View style={styles.nextFooter}>
+                <View>
+                  <Text style={styles.nextFooterCaption}>
+                    {nextShift.todayValue !== 'F'
+                      ? `Próxima folga em ${nextShift.daysUntil} ${nextShift.daysUntil === 1 ? 'dia' : 'dias'}`
+                      : `Volta ao trabalho em ${nextShift.daysUntil} ${nextShift.daysUntil === 1 ? 'dia' : 'dias'}`}
+                  </Text>
+                  <Text style={styles.nextFooterDate}>
+                    {nextShift.nextDate.toLocaleDateString('pt-BR', {
+                      weekday: 'short',
+                      day: '2-digit',
+                      month: 'short',
+                    })}
+                  </Text>
+                </View>
+                <View
+                  style={[styles.nextFooterPill, { backgroundColor: 'rgba(255,255,255,0.18)' }]}
+                >
+                  <Ionicons name={getCellTheme(nextShift.nextValue).icon} size={14} color="#fff" />
+                  <Text style={styles.nextFooterPillText}>
+                    {getCellTheme(nextShift.nextValue).label}
+                  </Text>
+                </View>
+              </View>
+            </LinearGradient>
+          </View>
+        </View>
+
+        <View
+          style={[styles.monthNav, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        >
+          <TouchableOpacity
+            onPress={goPrev}
+            style={[styles.navArrow, { backgroundColor: colors.surfaceElevated }]}
+          >
+            <Ionicons name="chevron-back" size={20} color={colors.textPrimary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setShowYearPicker(v => !v)}
+            style={{ flex: 1, alignItems: 'center' }}
+          >
+            <Text style={[styles.monthTitle, { color: colors.textPrimary }]}>
+              {MONTHS_PT[month]}
+            </Text>
+            <View style={styles.yearRow}>
+              <Text style={[styles.yearText, { color: colors.textSecondary }]}>{year}</Text>
+              <Ionicons
+                name={showYearPicker ? 'chevron-up' : 'chevron-down'}
+                size={14}
+                color={colors.textSecondary}
+              />
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={goNext}
+            style={[styles.navArrow, { backgroundColor: colors.surfaceElevated }]}
+          >
+            <Ionicons name="chevron-forward" size={20} color={colors.textPrimary} />
+          </TouchableOpacity>
+        </View>
+
+        {showYearPicker && (
+          <View
+            style={[
+              styles.yearPicker,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 8, paddingHorizontal: 4 }}
+            >
+              {Array.from({ length: MAX_YEAR - MIN_YEAR + 1 }, (_, i) => MIN_YEAR + i).map(y => {
+                const active = y === year;
+                return (
+                  <TouchableOpacity
+                    key={y}
+                    onPress={() => {
+                      setYear(y);
+                      setShowYearPicker(false);
+                    }}
+                    style={[
+                      styles.yearChip,
+                      {
+                        backgroundColor: active ? colors.primary : colors.surfaceElevated,
+                        borderColor: active ? colors.primary : colors.border,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={{
+                        color: active ? '#fff' : colors.textPrimary,
+                        fontWeight: '700',
+                        fontSize: 13,
+                      }}
+                    >
+                      {y}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+
+        <View style={styles.legendRow}>
+          {(['6', '14', '22', 'F'] as CellValue[]).map(v => {
+            const theme = getCellTheme(v);
+            return (
+              <View
+                key={v}
+                style={[
+                  styles.legendItem,
+                  { backgroundColor: theme.bg, borderColor: theme.border },
+                ]}
+              >
+                <Ionicons name={theme.icon} size={13} color={theme.text} />
+                <Text style={[styles.legendValue, { color: theme.text }]}>{v}</Text>
+                <Text style={[styles.legendLabel, { color: theme.text }]}>{theme.label}</Text>
+              </View>
+            );
+          })}
+        </View>
+
+        <View
+          style={[
+            styles.summaryCard,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
+          <View style={styles.summaryHeader}>
+            <Ionicons name="stats-chart-outline" size={16} color={colors.primary} />
+            <Text style={[styles.summaryHeaderText, { color: colors.textSecondary }]}>
+              Resumo do mês · Turno {myShift}
+            </Text>
+          </View>
+          <View style={styles.summaryRow}>
+            {(['6', '14', '22', 'F'] as CellValue[]).map((v, idx, arr) => {
+              const theme = getCellTheme(v);
+              return (
+                <React.Fragment key={v}>
+                  <View style={styles.summaryItem}>
+                    <Text style={[styles.summaryNum, { color: theme.text }]}>
+                      {monthSummary[v]}
+                    </Text>
+                    <Text style={[styles.summaryLbl, { color: colors.textTertiary }]}>
+                      {theme.label}
+                    </Text>
+                  </View>
+                  {idx < arr.length - 1 && (
+                    <View style={[styles.summaryDivider, { backgroundColor: colors.border }]} />
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </View>
+        </View>
+
+        <View
+          style={[
+            styles.tableWrap,
+            { backgroundColor: colors.surface, borderColor: colors.border },
+          ]}
+        >
+          <View style={[styles.tableHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.thDate, { color: colors.textSecondary }]}>Data</Text>
+            <Text style={[styles.thDay, { color: colors.textSecondary }]}>Dia</Text>
+            {SHIFTS.map(s => {
+              const isMine = s === myShift;
+              return (
+                <View
+                  key={s}
+                  style={[
+                    styles.thShift,
+                    isMine && {
+                      backgroundColor: colors.primary + '18',
+                      borderTopLeftRadius: 8,
+                      borderTopRightRadius: 8,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={{
+                      color: isMine ? colors.primary : colors.textSecondary,
+                      fontWeight: '800',
+                      fontSize: 13,
+                    }}
+                  >
+                    {s}
+                  </Text>
+                  {isMine && <View style={[styles.mineDot, { backgroundColor: colors.primary }]} />}
+                </View>
+              );
+            })}
+          </View>
+
+          {days.map((d, idx) => {
+            const today = isSameDay(d, now);
+            const wd = d.getDay();
+            const dayColor = wd === 0 ? colors.danger : wd === 6 ? colors.info : colors.textPrimary;
+            return (
+              <View
+                key={idx}
+                onLayout={e => {
+                  if (today) todayY.current = e.nativeEvent.layout.y;
+                }}
+                style={[
+                  styles.tableRow,
+                  {
+                    borderBottomColor: colors.border,
+                    backgroundColor: today ? colors.primary + '14' : 'transparent',
+                  },
+                ]}
+              >
+                <View style={styles.tdDate}>
+                  {today && <View style={[styles.todayDot, { backgroundColor: colors.primary }]} />}
+                  <Text
+                    style={{
+                      color: today ? colors.primary : colors.textPrimary,
+                      fontWeight: today ? '800' : '600',
+                      fontSize: 13,
+                    }}
+                  >
+                    {formatDate(d)}
+                  </Text>
+                </View>
+                <Text
+                  style={[
+                    styles.tdDay,
+                    { color: dayColor, fontWeight: wd === 0 || wd === 6 ? '800' : '600' },
+                  ]}
+                >
+                  {WEEKDAYS_PT[wd]}
+                </Text>
+                {SHIFTS.map(s => {
+                  const v = getShiftValue(d, s);
+                  const theme = getCellTheme(v);
+                  return (
+                    <View
+                      key={s}
+                      style={[
+                        styles.tdShift,
+                        s === myShift && { backgroundColor: colors.primary + '10' },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.cellPill,
+                          { backgroundColor: theme.bg, borderColor: theme.border },
+                        ]}
+                      >
+                        <Text style={{ color: theme.text, fontWeight: '800', fontSize: 13 }}>
+                          {v}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            );
+          })}
+        </View>
+
+        <Text style={[styles.footnote, { color: colors.textTertiary }]}>
+          Manhã 06h-14h · Tarde 14h-22h · Noite 22h-06h
+        </Text>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1 },
+  header: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 14, borderBottomWidth: 1 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  iconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: { fontSize: 17, fontWeight: '800', letterSpacing: -0.3 },
+  headerSub: { fontSize: 11, marginTop: 2, fontWeight: '500' },
+  scroll: { padding: 16, gap: 16, paddingBottom: 60 },
+  section: { gap: 10 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1 },
+  shiftPickerRow: { flexDirection: 'row', gap: 8 },
+  shiftChip: {
+    flex: 1,
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nextCardWrap: {
+    borderRadius: 22,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  nextCard: { padding: 20, gap: 6 },
+  nextCardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  nextBadge: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  nextBadgeText: { color: '#fff', fontWeight: '800', fontSize: 11, letterSpacing: 0.5 },
+  nextValuePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1.5,
+  },
+  nextValuePillText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+  nextHeadline: { color: '#fff', fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
+  nextSubline: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '500' },
+  nextDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.18)', marginVertical: 14 },
+  nextFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  nextFooterCaption: { color: 'rgba(255,255,255,0.65)', fontSize: 11, fontWeight: '600' },
+  nextFooterDate: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 2,
+    textTransform: 'capitalize',
+  },
+  nextFooterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  nextFooterPillText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  monthNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 6,
+  },
+  navArrow: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  monthTitle: { fontSize: 18, fontWeight: '800', letterSpacing: -0.3, textTransform: 'capitalize' },
+  yearRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 },
+  yearText: { fontSize: 12, fontWeight: '600' },
+  yearPicker: { padding: 10, borderRadius: 14, borderWidth: 1, marginTop: -8 },
+  yearChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1 },
+  legendRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
+  legendValue: { fontSize: 13, fontWeight: '800' },
+  legendLabel: { fontSize: 11, fontWeight: '600' },
+  summaryCard: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 12 },
+  summaryHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  summaryHeaderText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
+  summaryRow: { flexDirection: 'row', alignItems: 'center' },
+  summaryItem: { flex: 1, alignItems: 'center', gap: 2 },
+  summaryNum: { fontSize: 22, fontWeight: '800' },
+  summaryLbl: { fontSize: 10, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.4 },
+  summaryDivider: { width: 1, height: 30 },
+  tableWrap: { borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
+  tableHeader: {
+    flexDirection: 'row',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    alignItems: 'center',
+  },
+  thDate: {
+    width: 70,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  thDay: {
+    width: 42,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    textAlign: 'center',
+  },
+  thShift: { flex: 1, alignItems: 'center', paddingVertical: 4, position: 'relative' },
+  mineDot: { width: 4, height: 4, borderRadius: 2, marginTop: 3 },
+  tableRow: {
+    flexDirection: 'row',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    alignItems: 'center',
+  },
+  tdDate: { width: 70, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  todayDot: { width: 5, height: 5, borderRadius: 3 },
+  tdDay: { width: 42, fontSize: 12, textAlign: 'center' },
+  tdShift: { flex: 1, alignItems: 'center', paddingVertical: 2 },
+  cellPill: {
+    minWidth: 34,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footnote: { fontSize: 11, textAlign: 'center', marginTop: 4, fontWeight: '500' },
+});
