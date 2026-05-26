@@ -132,6 +132,27 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
+        name="tabela-turno"
+        options={{
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon
+              name={focused ? 'calendar' : 'calendar-outline'}
+              color={color}
+              focused={focused}
+              colors={colors}
+            />
+          ),
+          tabBarLabel: 'Tabela',
+        }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            navigation.navigate('tabela-turno' as any);
+          },
+        })}
+      />
+
+      <Tabs.Screen
         name="settings"
         options={{
           tabBarIcon: ({ color, focused }) => (

@@ -8,8 +8,6 @@ import { api, useAuth } from '../../src/auth';
 import BayerLogo from '../../src/BayerLogo';
 import { useTheme } from '../../src/theme';
 import { ProductionItem, todayISO } from '../../src/types';
-import { useHealthCheck } from '../../src/useHealthCheck';
-import { ServerStatusIndicator } from '../../components/ServerStatusIndicator';
 
 const NAV_CARDS = [
   {
@@ -57,7 +55,6 @@ const QUICK_CARDS = [
 export default function HomeScreen() {
   const { colors, mode, toggle } = useTheme();
   const { user, isDemo } = useAuth();
-  const healthStatus = useHealthCheck();
   const [items, setItems] = useState<ProductionItem[]>([]);
 
   const fetchItems = useCallback(async () => {
@@ -178,10 +175,7 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <View style={S.headerTitleRow}>
-          <Text style={[S.appTitle, { color: colors.textPrimary }]}>Preparação</Text>
-          <ServerStatusIndicator healthStatus={healthStatus} />
-        </View>
+        <Text style={[S.appTitle, { color: colors.textPrimary }]}>Preparação</Text>
 
         {!isDemo && items.length > 0 && (
           <>
@@ -413,12 +407,6 @@ const S = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -0.8,
     marginTop: 10,
-  },
-  headerTitleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    gap: 12,
   },
   // BARRA DE PRODUÇÃO HORIZONTAL (NOVO ESTILO)
   productionBar: {
