@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../../src/auth';
@@ -11,7 +11,7 @@ export default function SettingsScreen() {
   const { user, logout } = useAuth();
   const router = useRouter();
 
-  const settingsOptions = [
+  const settingsOptions = useMemo(() => [
     {
       id: 'account',
       title: 'Conta',
@@ -40,7 +40,7 @@ export default function SettingsScreen() {
       icon: 'cog',
       color: colors.warning,
     },
-  ];
+  ], [colors]);
 
   const handleLogout = () => {
     logout();
