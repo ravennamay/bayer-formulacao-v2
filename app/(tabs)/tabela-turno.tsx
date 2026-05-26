@@ -273,38 +273,43 @@ export default function TabelaTurnoScreen() {
                 </View>
               </View>
               <Text style={styles.nextHeadline}>
-                Você está em {getCellTheme(nextShift.todayValue).label}
+                {nextShift.todayValue === 'F'
+                  ? 'Você está em Folga'
+                  : `Você está no ${getCellTheme(nextShift.todayValue).label}`}
               </Text>
               <Text style={styles.nextSubline}>
-                {nextShift.daysUntil === 0
-                  ? 'a partir de agora'
-                  : nextShift.daysUntil === 1
-                    ? 'a partir de amanhã'
-                    : `nos próximos ${nextShift.daysUntil} dias`}
+                {nextShift.todayValue === 'F'
+                  ? nextShift.daysUntil === 0
+                    ? 'Volta ao trabalho hoje'
+                    : nextShift.daysUntil === 1
+                      ? 'Volta ao trabalho amanhã'
+                      : `Volta ao trabalho em ${nextShift.daysUntil} dias`
+                  : nextShift.daysUntil === 0
+                    ? 'Próxima folga hoje'
+                    : nextShift.daysUntil === 1
+                      ? 'Próxima folga amanhã'
+                      : `Próxima folga em ${nextShift.daysUntil} dias`}
               </Text>
               <View style={styles.nextDivider} />
               <View style={styles.nextFooter}>
                 <View>
                   <Text style={styles.nextFooterCaption}>
-                    {nextShift.todayValue !== 'F'
-                      ? `Próxima folga em ${nextShift.daysUntil} ${nextShift.daysUntil === 1 ? 'dia' : 'dias'}`
-                      : `Volta ao trabalho em ${nextShift.daysUntil} ${nextShift.daysUntil === 1 ? 'dia' : 'dias'}`}
+                    {nextShift.nextDate
+                      .toLocaleDateString('pt-BR', {
+                        weekday: 'long',
+                        day: '2-digit',
+                        month: 'short',
+                      })
+                      .toUpperCase()}
                   </Text>
                   <Text style={styles.nextFooterDate}>
-                    {nextShift.nextDate.toLocaleDateString('pt-BR', {
-                      weekday: 'short',
-                      day: '2-digit',
-                      month: 'short',
-                    })}
+                    {getCellTheme(nextShift.nextValue).label}
                   </Text>
                 </View>
                 <View
                   style={[styles.nextFooterPill, { backgroundColor: 'rgba(255,255,255,0.18)' }]}
                 >
-                  <Ionicons name={getCellTheme(nextShift.nextValue).icon} size={14} color="#fff" />
-                  <Text style={styles.nextFooterPillText}>
-                    {getCellTheme(nextShift.nextValue).label}
-                  </Text>
+                  <Ionicons name={getCellTheme(nextShift.nextValue).icon} size={16} color="#fff" />
                 </View>
               </View>
             </LinearGradient>
@@ -522,13 +527,7 @@ export default function TabelaTurnoScreen() {
                   const v = getShiftValue(d, s);
                   const theme = getCellTheme(v);
                   return (
-                    <View
-                      key={s}
-                      style={[
-                        styles.tdShift,
-                        s === myShift && { backgroundColor: colors.primary + '10' },
-                      ]}
-                    >
+                    <View key={s} style={styles.tdShift}>
                       <View
                         style={[
                           styles.cellPill,
