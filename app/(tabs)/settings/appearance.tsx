@@ -4,102 +4,140 @@ import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../../src/theme';
+import { SettingItem, SettingSection } from '../../../src/components/SettingsSection';
 
 export default function AppearanceScreen() {
   const { colors, mode, toggle } = useTheme();
   const router = useRouter();
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
+    <SafeAreaView
+      style={[styles.safe, { backgroundColor: colors.background }]}
+      edges={['top']}
+    >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
+          <Ionicons
+            name="chevron-back"
+            size={24}
+            color={colors.textPrimary}
+          />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Aparência</Text>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>
+          Aparência
+        </Text>
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
-        <View style={{ gap: 8 }}>
-          <Text
-            style={{
-              color: colors.textTertiary,
-              fontWeight: '600',
-              fontSize: 11,
-              letterSpacing: 0.8,
-              textTransform: 'uppercase',
-            }}
-          >
-            Tema
-          </Text>
-
-          <TouchableOpacity
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Theme Selector */}
+        <SettingSection title="Tema" colors={colors}>
+          <SettingItem
+            icon={mode === 'dark' ? 'moon' : 'sunny'}
+            title={`Modo ${mode === 'dark' ? 'Escuro' : 'Claro'}`}
+            subtitle="Alterne entre temas para conforto visual"
             onPress={toggle}
-            style={[styles.themeButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
-          >
-            <View style={styles.themeIconWrap}>
-              <Ionicons
-                name={mode === 'dark' ? 'moon' : 'sunny'}
-                size={24}
-                color={colors.primary}
-              />
-            </View>
+            colors={colors}
+            iconColor={mode === 'dark' ? colors.warning : colors.secondary}
+          />
+        </SettingSection>
 
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 15 }}>
-                Modo {mode === 'dark' ? 'Escuro' : 'Claro'}
-              </Text>
-              <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
-                Toque para alternar o tema
-              </Text>
-            </View>
-
-            <View
-              style={[
-                styles.themeIndicator,
-                { backgroundColor: mode === 'dark' ? colors.primary : colors.textTertiary },
-              ]}
-            />
-          </TouchableOpacity>
-        </View>
-
-        <View style={{ gap: 8 }}>
+        {/* Theme Preview */}
+        <View style={{ gap: 8, marginTop: 8 }}>
           <Text
-            style={{
-              color: colors.textTertiary,
-              fontWeight: '600',
-              fontSize: 11,
-              letterSpacing: 0.8,
-              textTransform: 'uppercase',
-            }}
+            style={[
+              styles.sectionTitle,
+              { color: colors.textTertiary },
+            ]}
           >
-            Informações do Tema
+            VISUALIZAÇÃO
           </Text>
 
           <View
             style={[
-              styles.infoBox,
+              styles.previewCard,
               {
                 backgroundColor: colors.surface,
                 borderColor: colors.border,
               },
             ]}
           >
-            <View style={styles.infoRow}>
-              <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Tema Atual</Text>
-              <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 13 }}>
-                {mode === 'dark' ? '🌙 Escuro' : '☀️ Claro'}
-              </Text>
+            <View style={styles.previewRow}>
+              <View
+                style={[
+                  styles.previewBox,
+                  { backgroundColor: colors.primary },
+                ]}
+              />
+              <View
+                style={[
+                  styles.previewBox,
+                  { backgroundColor: colors.secondary },
+                ]}
+              />
+              <View
+                style={[
+                  styles.previewBox,
+                  { backgroundColor: colors.success },
+                ]}
+              />
             </View>
+
+            <Text
+              style={[
+                styles.previewText,
+                { color: colors.textPrimary },
+              ]}
+            >
+              Texto Primário
+            </Text>
+            <Text
+              style={[
+                styles.previewSubtext,
+                { color: colors.textSecondary },
+              ]}
+            >
+              Texto Secundário
+            </Text>
           </View>
         </View>
+
+        {/* Display Settings */}
+        <SettingSection title="Display" colors={colors}>
+          <SettingItem
+            icon="settings"
+            title="Tamanho do Texto"
+            value="Normal"
+            colors={colors}
+            iconColor={colors.info}
+          />
+          <SettingItem
+            icon="contrast"
+            title="Contraste"
+            value="Padrão"
+            colors={colors}
+            iconColor={colors.warning}
+          />
+        </SettingSection>
+
+        <Text style={[styles.footer, { color: colors.textTertiary }]}>
+          As mudanças são aplicadas instantaneamente
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
+  safe: {
+    flex: 1,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -109,44 +147,54 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   backButton: {
-    width: 24,
-    height: 24,
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '700',
   },
-  themeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     gap: 12,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    paddingHorizontal: 16,
+  },
+  previewCard: {
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
+    gap: 12,
   },
-  themeIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  themeIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-  },
-  infoBox: {
-    borderRadius: 12,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  infoRow: {
+  previewRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 14,
+    gap: 12,
+  },
+  previewBox: {
+    flex: 1,
+    height: 60,
+    borderRadius: 8,
+  },
+  previewText: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  previewSubtext: {
+    fontSize: 12,
+  },
+  footer: {
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: 24,
+    marginBottom: 12,
   },
 });

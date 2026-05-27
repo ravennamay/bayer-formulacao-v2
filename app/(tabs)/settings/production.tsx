@@ -4,138 +4,192 @@ import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../../src/theme';
+import { SettingItem, SettingSection } from '../../../src/components/SettingsSection';
+
+interface StatusItem {
+  label: string;
+  icon: string;
+  color: string;
+  bg: string;
+  description: string;
+}
 
 export default function ProductionScreen() {
   const { colors } = useTheme();
   const router = useRouter();
 
+  const statusItems: StatusItem[] = [
+    {
+      label: 'Recebido',
+      icon: 'download-outline',
+      color: colors.info,
+      bg: colors.infoBg,
+      description: 'Material recebido no galpão',
+    },
+    {
+      label: 'A preparar',
+      icon: 'time-outline',
+      color: colors.warning,
+      bg: colors.warningBg,
+      description: 'Aguardando preparação',
+    },
+    {
+      label: 'Preparado',
+      icon: 'checkmark-done-circle',
+      color: colors.success,
+      bg: colors.successBg,
+      description: 'Pronto para fábrica',
+    },
+    {
+      label: 'Em fábrica',
+      icon: 'sync-circle',
+      color: colors.info,
+      bg: colors.infoBg,
+      description: 'Processamento em andamento',
+    },
+  ];
+
+  const weights = [
+    { name: 'Verango', weight: '400 kg/bag' },
+    { name: 'Ureia', weight: '700 kg/bag' },
+    { name: 'Demais', weight: 'Ver NF' },
+  ];
+
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
+    <SafeAreaView
+      style={[styles.safe, { backgroundColor: colors.background }]}
+      edges={['top']}
+    >
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
+          <Ionicons
+            name="chevron-back"
+            size={24}
+            color={colors.textPrimary}
+          />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Status de Produção</Text>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>
+          Produção
+        </Text>
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Status Grid */}
         <View style={{ gap: 8 }}>
           <Text
-            style={{
-              color: colors.textTertiary,
-              fontWeight: '600',
-              fontSize: 11,
-              letterSpacing: 0.8,
-              textTransform: 'uppercase',
-            }}
-          >
-            Status dos Materiais
-          </Text>
-
-          <View
             style={[
-              styles.statusGrid,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-                borderWidth: 1,
-                borderRadius: 14,
-              },
+              styles.sectionTitle,
+              { color: colors.textTertiary },
             ]}
           >
-            {[
-              {
-                label: 'Recebido',
-                color: colors.info,
-                bg: colors.infoBg,
-                icon: 'download-outline',
-              },
-              {
-                label: 'A preparar',
-                color: colors.warning,
-                bg: colors.warningBg,
-                icon: 'time-outline',
-              },
-              {
-                label: 'Preparado',
-                color: colors.success,
-                bg: colors.successBg,
-                icon: 'checkmark-done-circle',
-              },
-              { label: 'Em fábrica', color: colors.info, bg: colors.infoBg, icon: 'sync-circle' },
-            ].map((s, i, arr) => (
+            STATUS DOS MATERIAIS
+          </Text>
+
+          <View style={styles.statusGrid}>
+            {statusItems.map((item, index) => (
               <View
-                key={s.label}
+                key={item.label}
                 style={[
-                  styles.statusItem,
-                  i < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border },
+                  styles.statusCard,
+                  {
+                    backgroundColor: item.bg,
+                    borderColor: item.color + '30',
+                  },
                 ]}
               >
-                <View style={[styles.statusDot, { backgroundColor: s.bg }]}>
-                  <Ionicons name={s.icon as any} size={16} color={s.color} />
+                <View
+                  style={[
+                    styles.statusIconContainer,
+                    { backgroundColor: item.color + '20' },
+                  ]}
+                >
+                  <Ionicons
+                    name={item.icon as any}
+                    size={20}
+                    color={item.color}
+                  />
                 </View>
-                <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: '500' }}>
-                  {s.label}
+
+                <Text
+                  style={[
+                    styles.statusLabel,
+                    { color: item.color },
+                  ]}
+                >
+                  {item.label}
+                </Text>
+
+                <Text
+                  style={[
+                    styles.statusDescription,
+                    { color: colors.textSecondary },
+                  ]}
+                >
+                  {item.description}
                 </Text>
               </View>
             ))}
           </View>
         </View>
 
-        <View style={{ gap: 8 }}>
-          <Text
-            style={{
-              color: colors.textTertiary,
-              fontWeight: '600',
-              fontSize: 11,
-              letterSpacing: 0.8,
-              textTransform: 'uppercase',
-            }}
-          >
-            Pesos de Referência (Bags)
-          </Text>
+        {/* Weight Reference */}
+        <SettingSection title="Pesos de Referência" colors={colors}>
+          {weights.map((item, index) => (
+            <SettingItem
+              key={item.name}
+              icon="weight"
+              title={item.name}
+              value={item.weight}
+              colors={colors}
+              iconColor={colors.primary}
+            />
+          ))}
+        </SettingSection>
 
-          <View
+        {/* Reference Information */}
+        <View
+          style={[
+            styles.infoBox,
+            {
+              backgroundColor: colors.primary + '08',
+              borderColor: colors.primary + '20',
+            },
+          ]}
+        >
+          <Ionicons
+            name="information-circle"
+            size={16}
+            color={colors.primary}
+          />
+          <Text
             style={[
-              styles.weightList,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-              },
+              styles.infoText,
+              { color: colors.textSecondary },
             ]}
           >
-            {[
-              { name: 'Verango', weight: '400 kg/bag' },
-              { name: 'Ureia', weight: '700 kg/bag' },
-              { name: 'Demais', weight: 'Ver NF' },
-            ].map((item, i, arr) => (
-              <View
-                key={item.name}
-                style={[
-                  styles.weightRow,
-                  i < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border },
-                ]}
-              >
-                <Text style={{ color: colors.textPrimary, fontSize: 14, flex: 1 }}>
-                  {item.name}
-                </Text>
-                <View style={[styles.weightChip, { backgroundColor: colors.infoBg }]}>
-                  <Text style={{ color: colors.info, fontWeight: '700', fontSize: 12 }}>
-                    {item.weight}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </View>
+            Os pesos são referências padrão. Consulte a nota fiscal para valores específicos.
+          </Text>
         </View>
+
+        <Text style={[styles.footer, { color: colors.textTertiary }]}>
+          Informações de processo de produção
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
+  safe: {
+    flex: 1,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -145,25 +199,75 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   backButton: {
-    width: 24,
-    height: 24,
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '700',
   },
-  statusGrid: { overflow: 'hidden' },
-  statusItem: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
-  statusDot: {
-    width: 32,
-    height: 32,
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    gap: 12,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    paddingHorizontal: 0,
+    marginTop: 4,
+  },
+  statusGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  statusCard: {
+    flex: 1,
+    minWidth: '45%',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusIconContainer: {
+    width: 40,
+    height: 40,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  weightList: { borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
-  weightRow: { flexDirection: 'row', alignItems: 'center', padding: 12 },
-  weightChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  statusLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  statusDescription: {
+    fontSize: 11,
+    textAlign: 'center',
+  },
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginTop: 12,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 12,
+  },
+  footer: {
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: 24,
+    marginBottom: 12,
+  },
 });
