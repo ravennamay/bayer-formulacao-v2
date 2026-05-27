@@ -182,8 +182,7 @@ export default function AccountScreen() {
                   placeholder="Seu nome"
                   placeholderTextColor={colors.textTertiary}
                   value={name}
-                  onChangeText={setName}
-                  editable={!isDemo}
+                  onChangeText={isDemo ? () => {} : setName}
                 />
               </View>
 
@@ -203,7 +202,8 @@ export default function AccountScreen() {
                   placeholder="Email"
                   placeholderTextColor={colors.textTertiary}
                   value={email}
-                  editable={false}
+                  pointerEvents="none"
+                  contextMenuHidden
                 />
               </View>
             </View>
