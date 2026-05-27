@@ -1,14 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import {
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import BayerLogo from '../../../src/BayerLogo';
@@ -28,9 +21,7 @@ export default function SettingsIndexScreen() {
       {
         text: 'Sair',
         style: 'destructive',
-        onPress: () => {
-          logout();
-        },
+        onPress: logout,
       },
     ]);
 
@@ -47,7 +38,7 @@ export default function SettingsIndexScreen() {
       title: 'Aparência',
       subtitle: 'Tema e modo escuro',
       icon: 'palette-outline',
-      color: colors.secondary,
+      color: colors.primary,
     },
     {
       id: 'security',
@@ -83,8 +74,12 @@ export default function SettingsIndexScreen() {
       : []),
   ];
 
+  // ✅ CORREÇÃO AQUI
   const handleMenuPress = (id: string) => {
-    router.push(`/(tabs)/settings/${id}`);
+    router.push({
+      pathname: '/(tabs)/settings/[id]',
+      params: { id },
+    });
   };
 
   const numColumns = responsive.isMobile ? 1 : responsive.isTablet ? 2 : 3;
@@ -135,31 +130,22 @@ export default function SettingsIndexScreen() {
               {(user?.name || user?.email || 'U').charAt(0).toUpperCase()}
             </Text>
           </View>
+
           <View style={{ flex: 1 }}>
             <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 16 }}>
               {user?.name || 'Usuário'}
             </Text>
             <Text style={{ color: colors.textSecondary, fontSize: 13 }}>{user?.email}</Text>
           </View>
-          <View
-            style={[
-              styles.roleBadge,
-              { backgroundColor: colors.successBg },
-            ]}
-          >
-            <Text
-              style={{
-                color: colors.success,
-                fontWeight: '700',
-                fontSize: 11,
-              }}
-            >
+
+          <View style={[styles.roleBadge, { backgroundColor: colors.successBg }]}>
+            <Text style={{ color: colors.success, fontWeight: '700', fontSize: 11 }}>
               {(user?.role || 'USER').toUpperCase()}
             </Text>
           </View>
         </View>
 
-        {/* Menu Grid */}
+        {/* Menu */}
         <View style={{ gap: responsive.gap }}>
           <Text
             style={{
@@ -168,20 +154,13 @@ export default function SettingsIndexScreen() {
               fontSize: 11,
               letterSpacing: 0.8,
               textTransform: 'uppercase',
-              paddingHorizontal: 4,
             }}
           >
             Configurações
           </Text>
-          <View
-            style={[
-              styles.menuGrid,
-              {
-                gap: responsive.gap,
-              },
-            ]}
-          >
-            {menuItems.map((item) => (
+
+          <View style={[styles.menuGrid, { gap: responsive.gap }]}>
+            {menuItems.map(item => (
               <TouchableOpacity
                 key={item.id}
                 style={[
@@ -194,34 +173,16 @@ export default function SettingsIndexScreen() {
                   },
                 ]}
                 onPress={() => handleMenuPress(item.id)}
-                activeOpacity={0.7}
               >
-                <View
-                  style={[
-                    styles.iconBox,
-                    { backgroundColor: item.color + '15' },
-                  ]}
-                >
+                <View style={[styles.iconBox, { backgroundColor: item.color + '15' }]}>
                   <Ionicons name={item.icon as any} size={28} color={item.color} />
                 </View>
-                <Text
-                  style={{
-                    color: colors.textPrimary,
-                    fontWeight: '700',
-                    fontSize: responsive.isMobile ? 14 : 15,
-                    marginTop: 8,
-                  }}
-                >
+
+                <Text style={{ color: colors.textPrimary, fontWeight: '700', marginTop: 8 }}>
                   {item.title}
                 </Text>
-                <Text
-                  style={{
-                    color: colors.textSecondary,
-                    fontSize: 12,
-                    marginTop: 4,
-                  }}
-                  numberOfLines={2}
-                >
+
+                <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 4 }}>
                   {item.subtitle}
                 </Text>
               </TouchableOpacity>
@@ -229,7 +190,7 @@ export default function SettingsIndexScreen() {
           </View>
         </View>
 
-        {/* Logout Button */}
+        {/* Logout */}
         <TouchableOpacity
           onPress={handleLogout}
           style={[
@@ -242,19 +203,10 @@ export default function SettingsIndexScreen() {
           ]}
         >
           <Ionicons name="log-out-outline" size={20} color={colors.danger} />
-          <Text style={{ color: colors.danger, fontWeight: '700', fontSize: 15 }}>
-            Sair da conta
-          </Text>
+          <Text style={{ color: colors.danger, fontWeight: '700' }}>Sair da conta</Text>
         </TouchableOpacity>
 
-        <Text
-          style={{
-            color: colors.textTertiary,
-            fontSize: 11,
-            textAlign: 'center',
-            marginTop: 16,
-          }}
-        >
+        <Text style={{ color: colors.textTertiary, fontSize: 11, textAlign: 'center' }}>
           Bayer Preparação · v2.0.0
         </Text>
       </ScrollView>
@@ -286,11 +238,9 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: '800',
-    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 12,
-    marginTop: 2,
   },
   userCard: {
     flexDirection: 'row',
@@ -319,7 +269,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     padding: 16,
-    justifyContent: 'flex-start',
   },
   iconBox: {
     width: 48,
