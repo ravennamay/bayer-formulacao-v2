@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { api, useAuth } from '../src/auth';
+import { api, useAuth } from '../../src/auth';
 import { useTheme } from '../src/theme';
 import BayerLogo from '../src/BayerLogo';
 
