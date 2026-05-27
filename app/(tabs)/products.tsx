@@ -1,514 +1,854 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useFocusEffect } from 'expo-router';
+import React, { useCallback, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { api, useAuth } from '../../../src/auth';
-import { useTheme } from '../../../src/theme';
-import { useResponsive } from '../../../src/useResponsive';
+import { api } from '../../src/auth';
+import { useTheme } from '../../src/theme';
 
-type Product = { name: string; abbr: string };
+type Product = {
+  name: string;
+  abbr: string;
+  description?: string;
+  ingredients?: string[];
+  procedure?: string;
+  category?: string;
+  weight?: number;
+};
+
+const FALLBACK_PRODUCTS: Product[] = [
+  {
+    name: 'VERANGO',
+    abbr: 'VER',
+    category: 'Fungicida',
+    description: 'Fungicida sistêmico para folhas',
+    ingredients: ['Trifloxystrobin', 'Fluopyram'],
+    procedure: 'Aplicar conforme recomendação técnica',
+    weight: 500,
+  },
+  {
+    name: 'FOX XPRO',
+    abbr: 'FXX',
+    category: 'Fungicida',
+    description: 'Fungicida tríplice ação',
+    ingredients: ['Trifloxystrobin', 'Protioconazole', 'Bixafen'],
+    procedure: 'Aplicar preventivamente',
+    weight: 500,
+  },
+  {
+    name: 'NATIVO',
+    abbr: 'NAT',
+    category: 'Fungicida',
+    description: 'Fungicida de contato e sistêmico',
+    ingredients: ['Trifloxystrobin', 'Tebuconazole'],
+    procedure: 'Pulverização uniforme',
+    weight: 500,
+  },
+];
 
 export default function ProductsScreen() {
   const { colors } = useTheme();
-  const { isDemo } = useAuth();
-  const router = useRouter();
-  const responsive = useResponsive();
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState('');
+  const [products, setProducts] = useState<Product[]>(FALLBACK_PRODUCTS);
+  const [loading, setLoading] = useState(true);
 
-  const loadProducts = useCallback(async () => {
-    if (isDemo) return;
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+  const [detailsVisible, setDetailsVisible] = useState(false);
+  const [formVisible, setFormVisible] = useState(false);
+
+  const [newProduct, setNewProduct] = useState<Partial<Product>>({});
+
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+
     try {
-      const r = await api.get('/products');
-      setProducts(Array.isArray(r.data) ? r.data : []);
-    } catch {}
-  }, [isDemo]);
+      console.log('Fetching /recipes');
 
-  useEffect(() => {
-    loadProducts();
-  }, [loadProducts]);
+      const r = await api.get('/recipes');
 
-  const defaultProducts = [
-    { name: 'Nativo', abbr: 'NAT' },
-    { name: 'Verango', abbr: 'VER' },
-    { name: 'Oberon', abbr: 'OBE' },
-    { name: 'Fox Xpro', abbr: 'FXX' },
-    { name: 'Belt', abbr: 'BEL' },
-    { name: 'Sphere Max', abbr: 'SPH' },
-    { name: 'Connect', abbr: 'CON' },
-    { name: 'Movento', abbr: 'MOV' },
-    { name: 'Decis', abbr: 'DEC' },
-    { name: 'Alsystim', abbr: 'ALS' },
-    { name: 'Hybstem', abbr: 'HYB' },
-    { name: 'Ureia', abbr: 'URE' },
-  ];
+      console.log('RECIPES OK:', r.data);
 
-  const productList = isDemo ? defaultProducts : products.length > 0 ? products : defaultProducts;
+      if (Array.isArray(r.data) && r.data.length > 0) {
+        setProducts(r.data);
+      } else {
+        setProducts(FALLBACK_PRODUCTS);
+      }
+    } catch (err: any) {
+      console.log('RECIPES ERROR');
+      console.log('MESSAGE:', err?.message);
+      console.log('STATUS:', err?.response?.status);
+      console.log('DATA:', err?.response?.data);
 
-  const filteredProducts = productList.filter(
-    p =>
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.abbr.toLowerCase().includes(searchQuery.toLowerCase())
+      setProducts(FALLBACK_PRODUCTS);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchProducts();
+    }, [fetchProducts])
   );
 
-  const toggleProductSelection = (abbr: string) => {
-    const newSelected = new Set(selectedProducts);
-    if (newSelected.has(abbr)) {
-      newSelected.delete(abbr);
-    } else {
-      newSelected.add(abbr);
+  const q = search.trim().toLowerCase();
+
+  const filtered = useMemo(() => {
+    if (!q) return products;
+
+    return products.filter(p =>
+      `${p.name || ''} ${p.abbr || ''} ${p.description || ''} ${p.category || ''} ${(p.ingredients || []).join(' ')}`
+        .toLowerCase()
+        .includes(q)
+    );
+  }, [products, q]);
+
+  const handleAddProduct = async () => {
+    if (!newProduct.name?.trim() || !newProduct.abbr?.trim()) {
+      Alert.alert('Erro', 'Nome e abreviação são obrigatórios');
+      return;
     }
-    setSelectedProducts(newSelected);
+
+    const created: Product = {
+      name: newProduct.name.trim(),
+      abbr: newProduct.abbr.trim().toUpperCase(),
+      category: newProduct.category?.trim() || 'Geral',
+      description: newProduct.description?.trim() || '',
+      ingredients: [],
+      procedure: '',
+      weight: newProduct.weight,
+    };
+
+    setProducts(prev => [created, ...prev]);
+
+    setFormVisible(false);
+
+    setNewProduct({});
+
+    Alert.alert('Sucesso', 'Produto adicionado localmente');
   };
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
-      <View
-        style={[
-          styles.header,
-          { backgroundColor: colors.surface, borderBottomColor: colors.border },
-        ]}
-      >
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Catálogo de Produtos</Text>
-        <View style={{ width: 24 }} />
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.primary }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.title, { color: '#fff' }]}>📦 Catálogo de Produtos</Text>
+
+          <Text style={[styles.subtitle, { color: '#ffffffCC' }]}>
+            Todos os produtos disponíveis
+          </Text>
+        </View>
       </View>
 
-      <ScrollView
-        contentContainerStyle={{
-          padding: responsive.padding,
-          gap: responsive.gap,
-          paddingBottom: 40,
-        }}
-        keyboardShouldPersistTaps="handled"
+      <View
+        style={[
+          styles.searchBox,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+          },
+        ]}
       >
-        {/* Search */}
-        <View
+        <Ionicons name="search" size={16} color={colors.textTertiary} />
+
+        <TextInput
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Buscar produto..."
+          placeholderTextColor={colors.textTertiary}
           style={[
-            styles.searchBox,
+            styles.searchInput,
             {
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
+              color: colors.textPrimary,
             },
           ]}
-        >
-          <Ionicons name="search-outline" size={18} color={colors.textTertiary} />
-          <TextInput
-            style={[styles.searchInput, { color: colors.textPrimary }]}
-            placeholder="Buscar produtos..."
-            placeholderTextColor={colors.textTertiary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
-            </TouchableOpacity>
-          )}
+        />
+
+        {!!search && (
+          <TouchableOpacity onPress={() => setSearch('')}>
+            <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {loading ? (
+        <View style={styles.empty}>
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
+      ) : filtered.length === 0 ? (
+        <View style={styles.empty}>
+          <Ionicons name="inbox-outline" size={52} color={colors.textTertiary} />
 
-        {/* Stats */}
-        <View style={[styles.statsGrid, { gap: responsive.gap }]}>
-          <View
-            style={[
-              styles.statCard,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-            ]}
-          >
-            <View style={[styles.statIcon, { backgroundColor: colors.primary + '15' }]}>
-              <Ionicons name="cube-outline" size={20} color={colors.primary} />
-            </View>
-            <Text
-              style={{
-                color: colors.textTertiary,
-                fontSize: 12,
-                marginTop: 8,
-              }}
-            >
-              Total
-            </Text>
-            <Text
-              style={{
-                color: colors.textPrimary,
-                fontWeight: '700',
-                fontSize: 18,
-                marginTop: 4,
-              }}
-            >
-              {productList.length}
-            </Text>
-          </View>
-
-          <View
-            style={[
-              styles.statCard,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-            ]}
-          >
-            <View style={[styles.statIcon, { backgroundColor: colors.success + '15' }]}>
-              <Ionicons name="checkmark-circle-outline" size={20} color={colors.success} />
-            </View>
-            <Text
-              style={{
-                color: colors.textTertiary,
-                fontSize: 12,
-                marginTop: 8,
-              }}
-            >
-              Selecionados
-            </Text>
-            <Text
-              style={{
-                color: colors.textPrimary,
-                fontWeight: '700',
-                fontSize: 18,
-                marginTop: 4,
-              }}
-            >
-              {selectedProducts.size}
-            </Text>
-          </View>
-
-          <View
-            style={[
-              styles.statCard,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-            ]}
-          >
-            <View style={[styles.statIcon, { backgroundColor: colors.warning + '15' }]}>
-              <Ionicons name="filter-outline" size={20} color={colors.warning} />
-            </View>
-            <Text
-              style={{
-                color: colors.textTertiary,
-                fontSize: 12,
-                marginTop: 8,
-              }}
-            >
-              Filtrados
-            </Text>
-            <Text
-              style={{
-                color: colors.textPrimary,
-                fontWeight: '700',
-                fontSize: 18,
-                marginTop: 4,
-              }}
-            >
-              {filteredProducts.length}
-            </Text>
-          </View>
-        </View>
-
-        {/* All Products */}
-        <View style={{ gap: responsive.gap }}>
-          <Text
-            style={{
-              color: colors.textTertiary,
-              fontWeight: '600',
-              fontSize: 11,
-              letterSpacing: 0.8,
-              textTransform: 'uppercase',
-            }}
-          >
-            Todos os Produtos
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+            Nenhum produto encontrado
           </Text>
+        </View>
+      ) : (
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="always">
+          {filtered.map(product => (
+            <TouchableOpacity
+              key={`${product.name}-${product.abbr}`}
+              style={[
+                styles.productCard,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => {
+                setSelectedProduct(product);
+                setDetailsVisible(true);
+              }}
+            >
+              <View style={styles.productCardContent}>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.badgeRow}>
+                    <View
+                      style={[
+                        styles.categoryBadge,
+                        {
+                          backgroundColor: colors.primary + '22',
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={{
+                          color: colors.primary,
+                          fontSize: 10,
+                          fontWeight: '700',
+                        }}
+                      >
+                        {product.category || 'Geral'}
+                      </Text>
+                    </View>
+                  </View>
 
-          <View style={[styles.productGrid, { gap: responsive.gap }]}>
-            {filteredProducts.map(product => (
-              <TouchableOpacity
-                key={product.abbr}
-                onPress={() => toggleProductSelection(product.abbr)}
-                style={[
-                  styles.productCard,
-                  {
-                    backgroundColor: colors.surface,
-                    borderColor: selectedProducts.has(product.abbr)
-                      ? colors.primary
-                      : colors.border,
-                    borderWidth: selectedProducts.has(product.abbr) ? 2 : 1,
-                  },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.checkBox,
-                    {
-                      backgroundColor: selectedProducts.has(product.abbr)
-                        ? colors.primary
-                        : 'transparent',
-                      borderColor: selectedProducts.has(product.abbr)
-                        ? colors.primary
-                        : colors.border,
-                    },
-                  ]}
-                >
-                  {selectedProducts.has(product.abbr) && (
-                    <Ionicons name="checkmark" size={14} color="#fff" />
-                  )}
-                </View>
-                <View style={{ flex: 1, marginTop: 8 }}>
                   <Text
-                    style={{
-                      color: colors.textPrimary,
-                      fontWeight: '700',
-                      fontSize: 14,
-                    }}
+                    style={[
+                      styles.productName,
+                      {
+                        color: colors.textPrimary,
+                      },
+                    ]}
                   >
                     {product.name}
                   </Text>
-                  <View style={[styles.abbrChip, { backgroundColor: colors.primary + '22' }]}>
-                    <Text
-                      style={{
-                        color: colors.primary,
-                        fontWeight: '700',
-                        fontSize: 11,
-                      }}
-                    >
-                      {product.abbr}
-                    </Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
 
-          {filteredProducts.length === 0 && (
-            <View
+                  <Text
+                    style={[
+                      styles.productAbbr,
+                      {
+                        color: colors.textSecondary,
+                      },
+                    ]}
+                  >
+                    {product.abbr}
+                  </Text>
+
+                  {!!product.description && (
+                    <Text
+                      numberOfLines={2}
+                      style={[
+                        styles.productDesc,
+                        {
+                          color: colors.textTertiary,
+                        },
+                      ]}
+                    >
+                      {product.description}
+                    </Text>
+                  )}
+                </View>
+
+                <View style={styles.productMeta}>
+                  {!!product.weight && (
+                    <View
+                      style={[
+                        styles.weightBadge,
+                        {
+                          backgroundColor: '#10B98122',
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={{
+                          color: '#10B981',
+                          fontSize: 12,
+                          fontWeight: '700',
+                        }}
+                      >
+                        {product.weight}kg
+                      </Text>
+                    </View>
+                  )}
+
+                  <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+                </View>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
+
+      <TouchableOpacity
+        style={[
+          styles.fab,
+          {
+            backgroundColor: colors.primary,
+          },
+        ]}
+        onPress={() => {
+          setNewProduct({});
+          setFormVisible(true);
+        }}
+      >
+        <Ionicons name="add" size={28} color="#fff" />
+      </TouchableOpacity>
+
+      {/* DETAILS MODAL */}
+
+      <Modal visible={detailsVisible} animationType="slide">
+        <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+          <View style={[styles.header, { backgroundColor: colors.primary }]}>
+            <TouchableOpacity onPress={() => setDetailsVisible(false)}>
+              <Ionicons name="chevron-back" size={28} color="#fff" />
+            </TouchableOpacity>
+
+            <Text
               style={[
-                styles.emptyState,
-                { backgroundColor: colors.surface, borderColor: colors.border },
+                styles.title,
+                {
+                  color: '#fff',
+                  marginLeft: 12,
+                },
               ]}
             >
-              <Ionicons name="search-outline" size={40} color={colors.textTertiary} />
-              <Text
-                style={{
-                  color: colors.textPrimary,
-                  fontWeight: '600',
-                  fontSize: 15,
-                  marginTop: 12,
-                }}
-              >
-                Nenhum produto encontrado
-              </Text>
-              <Text
-                style={{
-                  color: colors.textSecondary,
-                  fontSize: 13,
-                  marginTop: 4,
-                  textAlign: 'center',
-                }}
-              >
-                Tente outro termo de busca
-              </Text>
-            </View>
-          )}
-        </View>
+              Detalhes
+            </Text>
+          </View>
 
-        {/* Reference Weights */}
-        <View style={{ gap: responsive.gap }}>
-          <Text
-            style={{
-              color: colors.textTertiary,
-              fontWeight: '600',
-              fontSize: 11,
-              letterSpacing: 0.8,
-              textTransform: 'uppercase',
-            }}
-          >
-            Pesos de Referência (Bags)
-          </Text>
-
-          <View
-            style={[
-              styles.productList,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-            ]}
-          >
-            {[
-              ['Verango', '400 kg/bag'],
-              ['Ureia', '700 kg/bag'],
-              ['Demais', 'Ver NF'],
-            ].map(([name, weight], i, arr) => (
+          {selectedProduct && (
+            <ScrollView contentContainerStyle={styles.detailsContent}>
               <View
-                key={name}
                 style={[
-                  styles.productRow,
-                  i < arr.length - 1 && {
-                    borderBottomWidth: 1,
-                    borderBottomColor: colors.border,
+                  styles.detailsCard,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
                   },
                 ]}
               >
-                <Ionicons
-                  name="leaf-outline"
-                  size={16}
-                  color={colors.primary}
-                  style={{ marginRight: 8 }}
-                />
                 <Text
-                  style={{
-                    color: colors.textPrimary,
-                    fontSize: 14,
-                    flex: 1,
-                    fontWeight: '500',
-                  }}
+                  style={[
+                    styles.detailsTitle,
+                    {
+                      color: colors.textPrimary,
+                    },
+                  ]}
                 >
-                  {name}
+                  {selectedProduct.name}
                 </Text>
-                <View style={[styles.weightChip, { backgroundColor: colors.infoBg }]}>
-                  <Text
-                    style={{
-                      color: colors.info,
-                      fontWeight: '700',
-                      fontSize: 12,
-                    }}
-                  >
-                    {weight}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        </View>
 
-        {/* Save Button */}
-        {selectedProducts.size > 0 && (
-          <TouchableOpacity style={[styles.saveButton, { backgroundColor: colors.primary }]}>
-            <Ionicons name="checkmark-done" size={18} color="#fff" />
+                <Text
+                  style={[
+                    styles.detailsSubtitle,
+                    {
+                      color: colors.textSecondary,
+                    },
+                  ]}
+                >
+                  {selectedProduct.abbr}
+                </Text>
+
+                {!!selectedProduct.description && (
+                  <View style={styles.detailsSection}>
+                    <Text
+                      style={[
+                        styles.detailsLabel,
+                        {
+                          color: colors.textTertiary,
+                        },
+                      ]}
+                    >
+                      DESCRIÇÃO
+                    </Text>
+
+                    <Text
+                      style={[
+                        styles.detailsText,
+                        {
+                          color: colors.textPrimary,
+                        },
+                      ]}
+                    >
+                      {selectedProduct.description}
+                    </Text>
+                  </View>
+                )}
+
+                {!!selectedProduct.ingredients?.length && (
+                  <View style={styles.detailsSection}>
+                    <Text
+                      style={[
+                        styles.detailsLabel,
+                        {
+                          color: colors.textTertiary,
+                        },
+                      ]}
+                    >
+                      INGREDIENTES
+                    </Text>
+
+                    {selectedProduct.ingredients.map((ing, idx) => (
+                      <View key={`${ing}-${idx}`} style={styles.ingredientRow}>
+                        <Text
+                          style={[
+                            styles.ingredientBullet,
+                            {
+                              color: colors.primary,
+                            },
+                          ]}
+                        >
+                          •
+                        </Text>
+
+                        <Text
+                          style={[
+                            styles.ingredientText,
+                            {
+                              color: colors.textPrimary,
+                            },
+                          ]}
+                        >
+                          {ing}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {!!selectedProduct.procedure && (
+                  <View style={styles.detailsSection}>
+                    <Text
+                      style={[
+                        styles.detailsLabel,
+                        {
+                          color: colors.textTertiary,
+                        },
+                      ]}
+                    >
+                      PROCEDIMENTO
+                    </Text>
+
+                    <Text
+                      style={[
+                        styles.detailsText,
+                        {
+                          color: colors.textPrimary,
+                        },
+                      ]}
+                    >
+                      {selectedProduct.procedure}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </ScrollView>
+          )}
+        </SafeAreaView>
+      </Modal>
+
+      {/* FORM MODAL */}
+
+      <Modal visible={formVisible} animationType="slide">
+        <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
+          <View style={[styles.header, { backgroundColor: colors.primary }]}>
+            <TouchableOpacity onPress={() => setFormVisible(false)}>
+              <Ionicons name="chevron-back" size={28} color="#fff" />
+            </TouchableOpacity>
+
             <Text
-              style={{
-                color: '#fff',
-                fontWeight: '700',
-                fontSize: 15,
-                flex: 1,
-                textAlign: 'center',
-              }}
+              style={[
+                styles.title,
+                {
+                  color: '#fff',
+                  marginLeft: 12,
+                },
+              ]}
             >
-              Salvar Seleção ({selectedProducts.size})
+              Novo Produto
             </Text>
-          </TouchableOpacity>
-        )}
-      </ScrollView>
+          </View>
+
+          <ScrollView contentContainerStyle={styles.formContent}>
+            <View style={styles.formGroup}>
+              <Text style={[styles.formLabel, { color: colors.textPrimary }]}>Nome</Text>
+
+              <TextInput
+                value={newProduct.name || ''}
+                onChangeText={v =>
+                  setNewProduct(prev => ({
+                    ...prev,
+                    name: v,
+                  }))
+                }
+                placeholder="Ex: FOX XPRO"
+                placeholderTextColor={colors.textTertiary}
+                style={[
+                  styles.formInput,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                    color: colors.textPrimary,
+                  },
+                ]}
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={[styles.formLabel, { color: colors.textPrimary }]}>Abreviação</Text>
+
+              <TextInput
+                value={newProduct.abbr || ''}
+                onChangeText={v =>
+                  setNewProduct(prev => ({
+                    ...prev,
+                    abbr: v,
+                  }))
+                }
+                placeholder="Ex: FXX"
+                placeholderTextColor={colors.textTertiary}
+                style={[
+                  styles.formInput,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                    color: colors.textPrimary,
+                  },
+                ]}
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={[styles.formLabel, { color: colors.textPrimary }]}>Categoria</Text>
+
+              <TextInput
+                value={newProduct.category || ''}
+                onChangeText={v =>
+                  setNewProduct(prev => ({
+                    ...prev,
+                    category: v,
+                  }))
+                }
+                placeholder="Ex: Fungicida"
+                placeholderTextColor={colors.textTertiary}
+                style={[
+                  styles.formInput,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                    color: colors.textPrimary,
+                  },
+                ]}
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={[styles.formLabel, { color: colors.textPrimary }]}>Peso (kg)</Text>
+
+              <TextInput
+                value={newProduct.weight ? String(newProduct.weight) : ''}
+                onChangeText={v =>
+                  setNewProduct(prev => ({
+                    ...prev,
+                    weight: v ? parseFloat(v) : undefined,
+                  }))
+                }
+                keyboardType="decimal-pad"
+                placeholder="Ex: 500"
+                placeholderTextColor={colors.textTertiary}
+                style={[
+                  styles.formInput,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                    color: colors.textPrimary,
+                  },
+                ]}
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={[styles.formLabel, { color: colors.textPrimary }]}>Descrição</Text>
+
+              <TextInput
+                value={newProduct.description || ''}
+                onChangeText={v =>
+                  setNewProduct(prev => ({
+                    ...prev,
+                    description: v,
+                  }))
+                }
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+                placeholder="Descrição do produto"
+                placeholderTextColor={colors.textTertiary}
+                style={[
+                  styles.formInput,
+                  styles.formTextArea,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                    color: colors.textPrimary,
+                  },
+                ]}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.submitBtn,
+                {
+                  backgroundColor: colors.primary,
+                },
+              ]}
+              onPress={handleAddProduct}
+            >
+              <Text
+                style={{
+                  color: '#fff',
+                  fontSize: 16,
+                  fontWeight: '700',
+                }}
+              >
+                Adicionar Produto
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
+  safe: {
+    flex: 1,
+  },
+
   header: {
+    padding: 16,
+    paddingBottom: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+
   title: {
-    fontSize: 18,
-    fontWeight: '700',
-    flex: 1,
-    textAlign: 'center',
+    fontSize: 20,
+    fontWeight: '800',
   },
+
+  subtitle: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    margin: 16,
+    marginBottom: 12,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    height: 44,
     borderRadius: 12,
     borderWidth: 1,
+    gap: 8,
   },
+
   searchInput: {
     flex: 1,
     fontSize: 14,
-    fontWeight: '500',
   },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+
+  scrollContent: {
+    paddingHorizontal: 12,
+    paddingBottom: 100,
   },
-  statCard: {
-    flex: 1,
-    minWidth: '30%',
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-  },
-  statIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  productGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
+
   productCard: {
-    flex: 1,
-    minWidth: '45%',
-    padding: 14,
-    borderRadius: 12,
-  },
-  checkBox: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  abbrChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    marginTop: 8,
-    alignSelf: 'flex-start',
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 40,
     borderRadius: 12,
     borderWidth: 1,
-  },
-  productList: {
-    borderRadius: 12,
-    borderWidth: 1,
+    marginBottom: 10,
     overflow: 'hidden',
   },
-  productRow: {
+
+  productCardContent: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
+    gap: 12,
   },
-  weightChip: {
+
+  badgeRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 6,
+  },
+
+  categoryBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
   },
-  saveButton: {
-    flexDirection: 'row',
+
+  weightBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+
+  productName: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  productAbbr: {
+    fontSize: 12,
+    marginBottom: 4,
+  },
+
+  productDesc: {
+    fontSize: 11,
+  },
+
+  productMeta: {
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  empty: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-    padding: 12,
+    gap: 12,
+  },
+
+  emptyText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 8,
+  },
+
+  detailsContent: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+
+  detailsCard: {
     borderRadius: 12,
+    borderWidth: 1,
+    padding: 16,
+  },
+
+  detailsTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+
+  detailsSubtitle: {
+    fontSize: 13,
+    marginBottom: 16,
+  },
+
+  detailsSection: {
+    marginBottom: 18,
+  },
+
+  detailsLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+
+  detailsText: {
+    fontSize: 14,
+    lineHeight: 22,
+  },
+
+  ingredientRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 6,
+  },
+
+  ingredientBullet: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  ingredientText: {
+    flex: 1,
+    fontSize: 13,
+  },
+
+  formContent: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+
+  formGroup: {
+    marginBottom: 16,
+  },
+
+  formLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+
+  formInput: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+  },
+
+  formTextArea: {
+    minHeight: 100,
+  },
+
+  submitBtn: {
+    height: 50,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 8,
   },
 });
