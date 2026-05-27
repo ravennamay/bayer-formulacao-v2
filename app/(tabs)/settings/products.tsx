@@ -1,14 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { api, useAuth } from '../../../src/auth';
@@ -57,9 +50,9 @@ export default function ProductsScreen() {
   const productList = isDemo ? defaultProducts : products.length > 0 ? products : defaultProducts;
 
   const filteredProducts = productList.filter(
-    (p) =>
+    p =>
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.abbr.toLowerCase().includes(searchQuery.toLowerCase()),
+      p.abbr.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const toggleProductSelection = (abbr: string) => {
@@ -80,10 +73,7 @@ export default function ProductsScreen() {
           { backgroundColor: colors.surface, borderBottomColor: colors.border },
         ]}
       >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.textPrimary }]}>Catálogo de Produtos</Text>
@@ -110,10 +100,7 @@ export default function ProductsScreen() {
         >
           <Ionicons name="search-outline" size={18} color={colors.textTertiary} />
           <TextInput
-            style={[
-              styles.searchInput,
-              { color: colors.textPrimary },
-            ]}
+            style={[styles.searchInput, { color: colors.textPrimary }]}
             placeholder="Buscar produtos..."
             placeholderTextColor={colors.textTertiary}
             value={searchQuery}
@@ -127,24 +114,14 @@ export default function ProductsScreen() {
         </View>
 
         {/* Stats */}
-        <View
-          style={[
-            styles.statsGrid,
-            { gap: responsive.gap },
-          ]}
-        >
+        <View style={[styles.statsGrid, { gap: responsive.gap }]}>
           <View
             style={[
               styles.statCard,
               { backgroundColor: colors.surface, borderColor: colors.border },
             ]}
           >
-            <View
-              style={[
-                styles.statIcon,
-                { backgroundColor: colors.primary + '15' },
-              ]}
-            >
+            <View style={[styles.statIcon, { backgroundColor: colors.primary + '15' }]}>
               <Ionicons name="cube-outline" size={20} color={colors.primary} />
             </View>
             <Text
@@ -174,12 +151,7 @@ export default function ProductsScreen() {
               { backgroundColor: colors.surface, borderColor: colors.border },
             ]}
           >
-            <View
-              style={[
-                styles.statIcon,
-                { backgroundColor: colors.success + '15' },
-              ]}
-            >
+            <View style={[styles.statIcon, { backgroundColor: colors.success + '15' }]}>
               <Ionicons name="checkmark-circle-outline" size={20} color={colors.success} />
             </View>
             <Text
@@ -209,12 +181,7 @@ export default function ProductsScreen() {
               { backgroundColor: colors.surface, borderColor: colors.border },
             ]}
           >
-            <View
-              style={[
-                styles.statIcon,
-                { backgroundColor: colors.warning + '15' },
-              ]}
-            >
+            <View style={[styles.statIcon, { backgroundColor: colors.warning + '15' }]}>
               <Ionicons name="filter-outline" size={20} color={colors.warning} />
             </View>
             <Text
@@ -253,13 +220,8 @@ export default function ProductsScreen() {
             Todos os Produtos
           </Text>
 
-          <View
-            style={[
-              styles.productGrid,
-              { gap: responsive.gap },
-            ]}
-          >
-            {filteredProducts.map((product) => (
+          <View style={[styles.productGrid, { gap: responsive.gap }]}>
+            {filteredProducts.map(product => (
               <TouchableOpacity
                 key={product.abbr}
                 onPress={() => toggleProductSelection(product.abbr)}
@@ -301,12 +263,7 @@ export default function ProductsScreen() {
                   >
                     {product.name}
                   </Text>
-                  <View
-                    style={[
-                      styles.abbrChip,
-                      { backgroundColor: colors.primary + '22' },
-                    ]}
-                  >
+                  <View style={[styles.abbrChip, { backgroundColor: colors.primary + '22' }]}>
                     <Text
                       style={{
                         color: colors.primary,
@@ -405,12 +362,7 @@ export default function ProductsScreen() {
                 >
                   {name}
                 </Text>
-                <View
-                  style={[
-                    styles.weightChip,
-                    { backgroundColor: colors.infoBg },
-                  ]}
-                >
+                <View style={[styles.weightChip, { backgroundColor: colors.infoBg }]}>
                   <Text
                     style={{
                       color: colors.info,
@@ -428,12 +380,7 @@ export default function ProductsScreen() {
 
         {/* Save Button */}
         {selectedProducts.size > 0 && (
-          <TouchableOpacity
-            style={[
-              styles.saveButton,
-              { backgroundColor: colors.primary },
-            ]}
-          >
+          <TouchableOpacity style={[styles.saveButton, { backgroundColor: colors.primary }]}>
             <Ionicons name="checkmark-done" size={18} color="#fff" />
             <Text
               style={{
