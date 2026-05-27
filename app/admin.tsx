@@ -4,8 +4,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, useAuth } from '../../src/auth';
-import { useTheme } from '../src/theme';
-import BayerLogo from '../src/BayerLogo';
+import { useTheme } from '../../src/theme';
+import BayerLogo from '../../src/BayerLogo';
 
 type AppUser = { id: string; email: string; name: string; role: string; created_at: string; };
 type Stats = { total_users: number; total_items: number; total_products: number; };
