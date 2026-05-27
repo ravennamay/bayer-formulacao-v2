@@ -52,10 +52,7 @@ export default function SecurityScreen() {
           { backgroundColor: colors.surface, borderBottomColor: colors.border },
         ]}
       >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.textPrimary }]}>Segurança</Text>
@@ -138,7 +135,7 @@ export default function SecurityScreen() {
                   ]}
                   placeholder="Digite sua senha atual"
                   placeholderTextColor={colors.textTertiary}
-                  secureTextEntry
+                  secureTextEntry={true}
                   value={oldPassword}
                   onChangeText={setOldPassword}
                 />
@@ -159,7 +156,7 @@ export default function SecurityScreen() {
                   ]}
                   placeholder="Digite a nova senha"
                   placeholderTextColor={colors.textTertiary}
-                  secureTextEntry
+                  secureTextEntry={true}
                   value={newPassword}
                   onChangeText={setNewPassword}
                 />
@@ -180,7 +177,7 @@ export default function SecurityScreen() {
                   ]}
                   placeholder="Confirme a nova senha"
                   placeholderTextColor={colors.textTertiary}
-                  secureTextEntry
+                  secureTextEntry={true}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                 />
@@ -273,10 +270,7 @@ export default function SecurityScreen() {
             ]}
           >
             <View
-              style={[
-                styles.optionRow,
-                { borderBottomWidth: 1, borderBottomColor: colors.border },
-              ]}
+              style={[styles.optionRow, { borderBottomWidth: 1, borderBottomColor: colors.border }]}
             >
               <View style={{ flex: 1 }}>
                 <Text
@@ -402,14 +396,10 @@ export default function SecurityScreen() {
                 >
                   <Ionicons
                     name={
-                      session.device === 'iPhone 12'
-                        ? 'phone-portrait-outline'
-                        : 'laptop-outline'
+                      session.device === 'iPhone 12' ? 'phone-portrait-outline' : 'laptop-outline'
                     }
                     size={18}
-                    color={
-                      session.device === 'iPhone 12' ? colors.primary : colors.success
-                    }
+                    color={session.device === 'iPhone 12' ? colors.primary : colors.success}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -424,12 +414,7 @@ export default function SecurityScreen() {
                       {session.device}
                     </Text>
                     {session.current && (
-                      <View
-                        style={[
-                          styles.currentBadge,
-                          { backgroundColor: colors.successBg },
-                        ]}
-                      >
+                      <View style={[styles.currentBadge, { backgroundColor: colors.successBg }]}>
                         <Text
                           style={{
                             color: colors.success,
@@ -463,10 +448,7 @@ export default function SecurityScreen() {
                 </View>
                 {!session.current && (
                   <TouchableOpacity
-                    style={[
-                      styles.logoutBtn,
-                      { backgroundColor: colors.dangerBg },
-                    ]}
+                    style={[styles.logoutBtn, { backgroundColor: colors.dangerBg }]}
                   >
                     <Ionicons name="close" size={16} color={colors.danger} />
                   </TouchableOpacity>
