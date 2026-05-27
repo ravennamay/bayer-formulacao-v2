@@ -22,8 +22,8 @@ type AuthContextType = {
   user: User | null;
   token: string | null;
   loading: boolean;
-  api: AxiosInstance;
   isDemo: boolean;
+  api: AxiosInstance;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -132,11 +132,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAuthHeader(null);
     setToken(null);
     setUser(null);
-    setIsDemo(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, api, isDemo, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, isDemo, api, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
