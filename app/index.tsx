@@ -1,5 +1,33 @@
-import { View } from 'react-native';
+import { Redirect } from 'expo-router';
+import { ActivityIndicator, View } from 'react-native';
+
+import { useAuth } from '../src/auth';
+import { useTheme } from '../src/theme';
 
 export default function Index() {
-  return <View style={{ flex: 1 }} />;
+  const { user, loading } = useAuth();
+  const { colors } = useTheme();
+
+  if (loading) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: colors.background,
+        }}
+      >
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+  if (user) {
+    if (!user.department) {
+      return <Redirect href="/select-department" />;
+    }
+    return <Redirect href="/(tabs)" />;
+  }
+
+  return <Redirect href="/login" />;
 }
