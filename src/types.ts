@@ -2,8 +2,6 @@ export const UNITS = ['Everest', 'Fênix'] as const;
 
 export const SCS = ['SC1', 'SC2', 'SC3', 'SC4', 'SC5', 'SC6', 'SC7'] as const;
 
-export const MATERIAL_STATUS = ['Disponível', 'Baixo', 'Indisponível'] as const;
-
 export const SITUATIONS = ['Recebido', 'A preparar', 'Preparado', 'Em fábrica'] as const;
 
 /**
