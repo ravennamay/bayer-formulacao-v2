@@ -30,7 +30,7 @@ type AuthContextType = {
   loading: boolean;
   api: AxiosInstance;
   isDemo: boolean;
-  login: (identifier: string, password: string) => Promise<void>;
+  login: (identifier: string, password: string, remember?: boolean) => Promise<void>;
   register: (email: string, password: string, name: string, matricula?: string) => Promise<void>;
   updateDepartment: (department: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -44,28 +44,58 @@ export const api = axios.create({
 });
 
 /**
- * Wrapper seguro para evitar crash em versões quebradas do SecureStore
+ * Storage seguro multiplataforma:
+ * - Web: localStorage (persistente, "lembrar de mim" ativo)
+ *        ou sessionStorage (temporário, sessão apenas)
+ * - Native: expo-secure-store
  */
 const safeSecureStore = {
-  get: async (key: string) => {
+  get: async (key: string): Promise<string | null> => {
     try {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        return (
+          window.localStorage.getItem(key) ??
+          window.sessionStorage.getItem(key) ??
+          null
+        );
+      }
       return await SecureStore.getItemAsync(key);
     } catch {
       return null;
     }
   },
-  set: async (key: string, value: string) => {
+
+  /**
+   * @param persist - true = localStorage (permanente), false = sessionStorage (fecha a aba → limpa)
+   */
+  set: async (key: string, value: string, persist = true): Promise<void> => {
     try {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        if (persist) {
+          window.localStorage.setItem(key, value);
+          window.sessionStorage.removeItem(key);
+        } else {
+          window.sessionStorage.setItem(key, value);
+          window.localStorage.removeItem(key);
+        }
+        return;
+      }
       await SecureStore.setItemAsync(key, value);
     } catch {
       // fallback silencioso
     }
   },
-  remove: async (key: string) => {
+
+  remove: async (key: string): Promise<void> => {
     try {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.localStorage.removeItem(key);
+        window.sessionStorage.removeItem(key);
+        return;
+      }
       await SecureStore.deleteItemAsync(key);
     } catch {
-      // fallback silencioso (evita crash do app)
+      // fallback silencioso
     }
   },
 };
@@ -97,6 +127,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(r.data);
         }
       } catch {
+        // Token inválido ou expirado — limpa sem redirecionar
         setAuthHeader(null);
         await safeSecureStore.remove(TOKEN_KEY);
       } finally {
@@ -105,12 +136,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     })();
   }, []);
 
-  const login = async (identifier: string, password: string) => {
+  const login = async (identifier: string, password: string, remember = true) => {
     const r = await api.post('/auth/login', { identifier, password });
 
     const tk = r.data.access_token as string;
 
-    await safeSecureStore.set(TOKEN_KEY, tk);
+    await safeSecureStore.set(TOKEN_KEY, tk, remember);
 
     setAuthHeader(tk);
     setToken(tk);
@@ -127,7 +158,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const tk = r.data.access_token as string;
 
-    await safeSecureStore.set(TOKEN_KEY, tk);
+    // Registro sempre persiste no localStorage (lembrar de mim = true por padrão)
+    await safeSecureStore.set(TOKEN_KEY, tk, true);
 
     setAuthHeader(tk);
     setToken(tk);
