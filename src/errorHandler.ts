@@ -98,10 +98,7 @@ export const handleApiError = (error: any): FriendlyError => {
       details: data?.detail,
       code: 'BAD_REQUEST',
       actionable: true,
-      suggestions: [
-        'Verifique os dados enviados',
-        'Tente preencher o formulário novamente',
-      ],
+      suggestions: ['Verifique os dados enviados', 'Tente preencher o formulário novamente'],
     };
   }
 
@@ -123,10 +120,7 @@ export const handleApiError = (error: any): FriendlyError => {
       details: 'Sua conta pode não ter os direitos necessários.',
       code: 'FORBIDDEN',
       actionable: false,
-      suggestions: [
-        'Entre em contato com o administrador',
-        'Verifique suas permissões',
-      ],
+      suggestions: ['Entre em contato com o administrador', 'Verifique suas permissões'],
     };
   }
 
@@ -153,11 +147,7 @@ export const handleApiError = (error: any): FriendlyError => {
       details: data?.detail,
       code: 'CONFLICT',
       actionable: true,
-      suggestions: [
-        'Recarregue a página',
-        'Verifique se o item já existe',
-        'Tente novamente',
-      ],
+      suggestions: ['Recarregue a página', 'Verifique se o item já existe', 'Tente novamente'],
     };
   }
 
