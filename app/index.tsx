@@ -1,30 +1,5 @@
-import { Redirect } from 'expo-router';
-import { ActivityIndicator, View } from 'react-native';
-
-import { useAuth } from '../src/auth';
-import { useTheme } from '../src/theme';
+import { View } from 'react-native';
 
 export default function Index() {
-  const { user, loading } = useAuth();
-  const { colors } = useTheme();
-
-  if (loading) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: colors.background,
-        }}
-      >
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
-  if (user) {
-    return <Redirect href="/(tabs)" />;
-  }
-
-  return <Redirect href="/login" />;
+  return <View style={{ flex: 1 }} />;
 }
