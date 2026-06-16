@@ -75,7 +75,7 @@ export default function Login() {
     setLoading(true);
     try {
       if (authMode === 'login') {
-        await login(identifier.trim(), password);
+        await login(identifier.trim(), password, remember);
         await safeAsyncStorage.setItem(REMEMBER_KEY, remember ? '1' : '0');
         if (remember) {
           await safeAsyncStorage.setItem(REMEMBER_ID_KEY, identifier.trim());
