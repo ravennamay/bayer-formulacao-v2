@@ -43,14 +43,17 @@ from openpyxl.styles import (
 # =========================================================
 
 ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / ".env")
+load_dotenv(ROOT_DIR / ".env", override=True)
 
 MONGO_URL = os.getenv("MONGO_URL")
 DB_NAME = os.getenv("DB_NAME", "bayer_db")
-JWT_SECRET = os.getenv("JWT_SECRET", "super_secret_key")
+JWT_SECRET = os.getenv("JWT_SECRET")
 
 if not MONGO_URL:
     raise RuntimeError("MONGO_URL não configurado")
+
+if not JWT_SECRET:
+    raise RuntimeError("JWT_SECRET não configurado — defina a variável de ambiente JWT_SECRET")
 
 # =========================================================
 # DATABASE
@@ -78,23 +81,21 @@ JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
 
 DEFAULT_PRODUCTS = [
-  { "name": "ALSYSTIN", "abbr": "ALS" },
-  { "name": "BULLDOCK", "abbr": "BUL" },
-  { "name": "CONNECT", "abbr": "CON" },
-  { "name": "CURBIX", "abbr": "CUR" },
-  { "name": "FOX", "abbr": "FOX" },
-  { "name": "FOX XPRO", "abbr": "FXX" },
-  { "name": "NATIVO", "abbr": "NAT" },
-  { "name": "OBERON", "abbr": "OBE" },
-  { "name": "PREMIER PLUS", "abbr": "PRP" },
-  { "name": "PROVADO", "abbr": "PRO" },
-  { "name": "SPHERE MAX", "abbr": "SPM" },
-  { "name": "FINISH", "abbr": "FIN" },
-  { "name": "SOBERAN", "abbr": "SOB" },
-  { "name": "VERANGO", "abbr": "VER" },
-  { "name": "BELT", "abbr": "BEL" },
-  { "name": "MOVENTO", "abbr": "MOV" },
-  { "name": "DECIS", "abbr": "DEC" }
+  { "name": "ALSYSTIN",     "abbr": "ALS", "category": "Inseticida",               "subcategory": "Regulador de Crescimento de Insetos" },
+  { "name": "BULLDOCK",     "abbr": "BUL", "category": "Inseticida",               "subcategory": "Piretróide" },
+  { "name": "CONNECT",      "abbr": "CON", "category": "Inseticida",               "subcategory": "Neonicotinoide + Piretróide" },
+  { "name": "CURBIX",       "abbr": "CUR", "category": "Inseticida",               "subcategory": "Sulfoximina" },
+  { "name": "FOX XPRO",     "abbr": "FXX", "category": "Fungicida",                "subcategory": "QoI + DMI + SDHI" },
+  { "name": "FOX ULTRA",    "abbr": "FUL", "category": "Fungicida",                "subcategory": "QoI + DMI + Morfolina" },
+  { "name": "NATIVO",       "abbr": "NAT", "category": "Fungicida",                "subcategory": "Triazol + QoI" },
+  { "name": "OBERON",       "abbr": "OBE", "category": "Acaricida",                "subcategory": "Cetoenol" },
+  { "name": "PREMIER PLUS", "abbr": "PRP", "category": "Inseticida",               "subcategory": "Neonicotinoide + Piretróide" },
+  { "name": "PROVADO",      "abbr": "PRO", "category": "Inseticida",               "subcategory": "Neonicotinoide" },
+  { "name": "SPHERE MAX",   "abbr": "SPM", "category": "Fungicida",                "subcategory": "QoI + Triazol" },
+  { "name": "FINISH",       "abbr": "FIN", "category": "Regulador de Crescimento", "subcategory": "Etefon" },
+  { "name": "SOBERAN",      "abbr": "SOB", "category": "Fungicida",                "subcategory": "SDHI + QoI" },
+  { "name": "VERANGO",      "abbr": "VER", "category": "Fungicida",                "subcategory": "SDHI + QoI" },
+  { "name": "GAUCHO",       "abbr": "GAU", "category": "Inseticida",               "subcategory": "Neonicotinoide – Tratamento de Sementes" },
 ]
 
 # =========================================================
@@ -213,16 +214,19 @@ class UserPublic(BaseModel):
     email: str
     name: str
     role: str = "user"
+    matricula: Optional[str] = None
+    department: Optional[str] = None
 
 
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6)
     name: str = Field(min_length=1)
+    matricula: Optional[str] = None
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    identifier: str
     password: str
 
 
@@ -233,7 +237,7 @@ class TokenResponse(BaseModel):
 
 
 class ForgotPasswordRequest(BaseModel):
-    email: EmailStr
+    identifier: str
 
 
 class ResetPasswordRequest(BaseModel):
@@ -547,7 +551,6 @@ async def health_public():
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "version": "2.0.0",
             "database": "disconnected",
-            "error": str(e),
         }
 
 
@@ -597,6 +600,16 @@ async def register(
             detail="E-mail já cadastrado",
         )
 
+    if payload.matricula:
+        mat_existing = await db.users.find_one({
+            "matricula": payload.matricula.strip()
+        })
+        if mat_existing:
+            raise HTTPException(
+                status_code=400,
+                detail="Matrícula já cadastrada",
+            )
+
     user_id = str(uuid.uuid4())
 
     await db.users.insert_one({
@@ -607,6 +620,8 @@ async def register(
         ),
         "name": payload.name,
         "role": "user",
+        "matricula": payload.matricula.strip() if payload.matricula else None,
+        "department": None,
         "created_at": datetime.now(
             timezone.utc
         ).isoformat(),
@@ -624,6 +639,8 @@ async def register(
             email=email,
             name=payload.name,
             role="user",
+            matricula=payload.matricula.strip() if payload.matricula else None,
+            department=None,
         ),
     )
 
@@ -635,17 +652,17 @@ async def register(
 async def login(
     payload: LoginRequest
 ):
+    identifier = payload.identifier.strip()
 
-    email = payload.email.lower()
-
-    user = await db.users.find_one({
-        "email": email
-    })
+    # Try by email first, then by matricula
+    user = await db.users.find_one({"email": identifier.lower()})
+    if not user:
+        user = await db.users.find_one({"matricula": identifier})
 
     if not user:
         raise HTTPException(
             status_code=401,
-            detail="E-mail ou senha inválidos",
+            detail="Credenciais inválidas",
         )
 
     if not verify_password(
@@ -654,21 +671,23 @@ async def login(
     ):
         raise HTTPException(
             status_code=401,
-            detail="E-mail ou senha inválidos",
+            detail="Credenciais inválidas",
         )
 
     token = create_access_token(
         user["id"],
-        email,
+        user["email"],
     )
 
     return TokenResponse(
         access_token=token,
         user=UserPublic(
             id=user["id"],
-            email=email,
+            email=user["email"],
             name=user.get("name", ""),
             role=user.get("role", "user"),
+            matricula=user.get("matricula"),
+            department=user.get("department"),
         ),
     )
 
@@ -688,6 +707,48 @@ async def me(
         email=user["email"],
         name=user.get("name", ""),
         role=user.get("role", "user"),
+        matricula=user.get("matricula"),
+        department=user.get("department"),
+    )
+
+
+class UpdateProfileRequest(BaseModel):
+    department: Optional[str] = None
+    name: Optional[str] = None
+
+
+@api_router.patch(
+    "/auth/me",
+    response_model=UserPublic,
+)
+async def update_me(
+    payload: UpdateProfileRequest,
+    user: dict = Depends(get_current_user),
+):
+    update_fields: dict = {}
+    if payload.department is not None:
+        update_fields["department"] = payload.department
+    if payload.name is not None:
+        update_fields["name"] = payload.name
+
+    if update_fields:
+        await db.users.update_one(
+            {"id": user["id"]},
+            {"$set": update_fields},
+        )
+
+    updated = await db.users.find_one(
+        {"id": user["id"]},
+        {"_id": 0, "password_hash": 0},
+    )
+
+    return UserPublic(
+        id=updated["id"],
+        email=updated["email"],
+        name=updated.get("name", ""),
+        role=updated.get("role", "user"),
+        matricula=updated.get("matricula"),
+        department=updated.get("department"),
     )
 
 
@@ -696,17 +757,22 @@ async def forgot_password(
     payload: ForgotPasswordRequest,
 ):
 
-    email = payload.email.lower()
+    identifier = payload.identifier.strip().lower()
 
     user = await db.users.find_one({
-        "email": email
+        "$or": [
+            {"email": identifier},
+            {"matricula": identifier},
+        ]
     })
 
     if not user:
         return {
-            "message": "Se o e-mail existir, um link de reset será enviado"
+            "found": False,
+            "message": "Usuário não encontrado",
         }
 
+    email = user["email"]
     reset_token = create_reset_token(
         user["id"],
         email,
@@ -734,8 +800,9 @@ async def forgot_password(
     )
 
     return {
-        "message": "Se o e-mail existir, um link de reset será enviado",
-        "reset_token": reset_token,
+        "found": True,
+        "token": reset_token,
+        "message": "Usuário verificado. Defina sua nova senha.",
     }
 
 
