@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../src/auth';
 import { useTheme } from '../src/theme';
@@ -18,16 +19,10 @@ type Department = {
   icon: keyof typeof Ionicons.glyphMap;
   description: string;
   color: string;
+  disabled?: boolean;
 };
 
 const DEPARTMENTS: Department[] = [
-  {
-    id: 'formulacao',
-    label: 'Formulação',
-    icon: 'flask-outline',
-    description: 'Mistura e formulação de defensivos',
-    color: '#0D7A3E',
-  },
   {
     id: 'buffer-preparacao',
     label: 'Buffer – Preparação',
@@ -36,17 +31,27 @@ const DEPARTMENTS: Department[] = [
     color: '#1565C0',
   },
   {
+    id: 'formulacao',
+    label: 'Formulação',
+    icon: 'flask-outline',
+    description: 'Mistura e formulação de defensivos',
+    color: '#0D7A3E',
+    disabled: true,
+  },
+  {
     id: 'herbicidas',
     label: 'Herbicidas',
     icon: 'leaf-outline',
     description: 'Produção e envase de herbicidas',
     color: '#6A1B9A',
+    disabled: true,
   },
 ];
 
 export default function SelectDepartment() {
   const { updateDepartment, user } = useAuth();
   const { colors } = useTheme();
+  const router = useRouter();
 
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -59,7 +64,7 @@ export default function SelectDepartment() {
     setLoading(true);
     try {
       await updateDepartment(selected);
-      // AuthGuard in _layout.tsx navigates to /(tabs) once department is set
+      router.replace('/(tabs)');
     } catch {
       Alert.alert('Erro', 'Não foi possível salvar o setor. Tente novamente.');
     } finally {
@@ -67,10 +72,8 @@ export default function SelectDepartment() {
     }
   };
 
-  const skip = async () => {
-    // Mark as skipped by setting a placeholder so AuthGuard sees department as set
-    await updateDepartment('—').catch(() => {});
-    // AuthGuard in _layout.tsx handles navigation
+  const skip = () => {
+    router.replace('/(tabs)');
   };
 
   return (
@@ -93,43 +96,59 @@ export default function SelectDepartment() {
         <View style={styles.options}>
           {DEPARTMENTS.map(dept => {
             const isSelected = selected === dept.id;
+            const isDisabled = !!dept.disabled;
             return (
               <TouchableOpacity
                 key={dept.id}
-                onPress={() => setSelected(dept.id)}
-                activeOpacity={0.82}
+                onPress={() => !isDisabled && setSelected(dept.id)}
+                activeOpacity={isDisabled ? 1 : 0.82}
+                disabled={isDisabled}
                 style={[
                   styles.option,
                   {
-                    backgroundColor: isSelected ? dept.color + '15' : colors.surface,
-                    borderColor: isSelected ? dept.color : colors.border,
-                    borderWidth: isSelected ? 2 : 1,
-                    shadowColor: isSelected ? dept.color : '#000',
+                    backgroundColor: isDisabled
+                      ? colors.surface
+                      : isSelected ? dept.color + '15' : colors.surface,
+                    borderColor: isDisabled
+                      ? colors.border
+                      : isSelected ? dept.color : colors.border,
+                    borderWidth: isSelected && !isDisabled ? 2 : 1,
+                    shadowColor: isSelected && !isDisabled ? dept.color : '#000',
+                    opacity: isDisabled ? 0.45 : 1,
                   },
                 ]}
               >
-                <View style={[styles.optionIcon, { backgroundColor: dept.color + '20' }]}>
-                  <Ionicons name={dept.icon} size={28} color={dept.color} />
+                <View style={[styles.optionIcon, { backgroundColor: isDisabled ? colors.border + '40' : dept.color + '20' }]}>
+                  <Ionicons name={dept.icon} size={28} color={isDisabled ? colors.textTertiary : dept.color} />
                 </View>
                 <View style={styles.optionText}>
-                  <Text style={[styles.optionLabel, { color: isSelected ? dept.color : colors.textPrimary }]}>
-                    {dept.label}
-                  </Text>
+                  <View style={styles.optionLabelRow}>
+                    <Text style={[styles.optionLabel, { color: isDisabled ? colors.textTertiary : isSelected ? dept.color : colors.textPrimary }]}>
+                      {dept.label}
+                    </Text>
+                    {isDisabled && (
+                      <View style={styles.soonBadge}>
+                        <Text style={styles.soonText}>Em breve</Text>
+                      </View>
+                    )}
+                  </View>
                   <Text style={[styles.optionDesc, { color: colors.textSecondary }]}>
                     {dept.description}
                   </Text>
                 </View>
-                <View style={[
-                  styles.checkCircle,
-                  {
-                    borderColor: isSelected ? dept.color : colors.border,
-                    backgroundColor: isSelected ? dept.color : 'transparent',
-                  },
-                ]}>
-                  {isSelected && (
-                    <Ionicons name="checkmark" size={14} color="#fff" />
-                  )}
-                </View>
+                {!isDisabled && (
+                  <View style={[
+                    styles.checkCircle,
+                    {
+                      borderColor: isSelected ? dept.color : colors.border,
+                      backgroundColor: isSelected ? dept.color : 'transparent',
+                    },
+                  ]}>
+                    {isSelected && (
+                      <Ionicons name="checkmark" size={14} color="#fff" />
+                    )}
+                  </View>
+                )}
               </TouchableOpacity>
             );
           })}
@@ -236,6 +255,11 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 3,
   },
+  optionLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   optionLabel: {
     fontSize: 16,
     fontWeight: '800',
@@ -243,6 +267,18 @@ const styles = StyleSheet.create({
   optionDesc: {
     fontSize: 12,
     lineHeight: 16,
+  },
+  soonBadge: {
+    backgroundColor: '#9E9E9E22',
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  soonText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#9E9E9E',
+    letterSpacing: 0.3,
   },
   checkCircle: {
     width: 24,
