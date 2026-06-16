@@ -118,6 +118,7 @@ const LIGHT: ThemeColors = {
 type ThemeContextType = {
   mode: ThemeMode;
   colors: ThemeColors;
+  isDark: boolean;
   toggle: () => void;
   setTheme: (mode: ThemeMode) => void;
 };
@@ -184,6 +185,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     () => ({
       mode,
       colors,
+      isDark: mode === 'dark',
       toggle,
       setTheme,
     }),
