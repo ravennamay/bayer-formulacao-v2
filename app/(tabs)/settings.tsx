@@ -1,342 +1,196 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React from 'react';
+import {
+  Alert,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import BayerLogo from '../../src/BayerLogo';
-
-import { api, useAuth } from '../../src/auth';
+import { useAuth } from '../../src/auth';
 import { useTheme } from '../../src/theme';
-
-type Product = { name: string; abbr: string };
 
 export default function SettingsScreen() {
   const { colors, mode, toggle } = useTheme();
   const { user, logout, isDemo } = useAuth();
   const router = useRouter();
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [compactView, setCompactView] = useState(false);
-
-  const loadProducts = useCallback(async () => {
-    if (isDemo) return;
-    try {
-      const r = await api.get('/products');
-      setProducts(Array.isArray(r.data) ? r.data : []);
-    } catch {}
-  }, [isDemo]);
-
-  useEffect(() => {
-    loadProducts();
-  }, [loadProducts]);
-
   const handleLogout = () =>
     Alert.alert('Sair', 'Confirma encerrar a sessão?', [
       { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Sair',
-        style: 'destructive',
-        onPress: () => {
-          logout();
-        },
-      },
+      { text: 'Sair', style: 'destructive', onPress: logout },
     ]);
 
-  const openDocs = () => Linking.openURL('https://www.bayer.com');
-
-  const defaultProducts = [
-    { name: 'Nativo', abbr: 'NAT' },
-    { name: 'Verango', abbr: 'VER' },
-    { name: 'Oberon', abbr: 'OBE' },
-    { name: 'Fox Xpro', abbr: 'FXX' },
-    { name: 'Belt', abbr: 'BEL' },
-    { name: 'Sphere Max', abbr: 'SPH' },
-    { name: 'Connect', abbr: 'CON' },
-    { name: 'Movento', abbr: 'MOV' },
-    { name: 'Decis', abbr: 'DEC' },
-    { name: 'Alsystim', abbr: 'ALS' },
-    { name: 'Hybstem', abbr: 'HYB' },
-    { name: 'Ureia', abbr: 'URE' },
-  ];
-
-  const productList = isDemo ? defaultProducts : products.length > 0 ? products : defaultProducts;
+  const initials = (user?.name || user?.email || 'U')
+    .split(' ')
+    .slice(0, 2)
+    .map(w => w[0])
+    .join('')
+    .toUpperCase();
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top']}>
+      {/* Header */}
       <View
-        style={[
-          styles.header,
-          { backgroundColor: colors.surface, borderBottomColor: colors.border },
-        ]}
+        style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}
       >
-        <View style={styles.headerRow}>
-          <View style={styles.bayerBadge}>
-            <BayerLogo size={24} />
-          </View>
-          <Text style={[styles.title, { color: colors.textPrimary }]}>Configurações</Text>
-          <View style={styles.gearWrap}>
-            <Ionicons name="settings-outline" size={22} color={colors.textTertiary} />
-          </View>
+        <View style={styles.bayerBadge}>
+          <BayerLogo size={22} />
         </View>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Configurações</Text>
       </View>
 
       <ScrollView
-        contentContainerStyle={{ padding: 16, gap: 16 }}
-        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ padding: 16, gap: 20, paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
       >
-        <Section title="Conta" colors={colors}>
+        {/* Perfil */}
+        <View
+          style={[styles.profileCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        >
+          <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+            <Text style={styles.avatarText}>{initials}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.profileName, { color: colors.textPrimary }]}>
+              {user?.name || 'Operador'}
+            </Text>
+            <Text style={[styles.profileEmail, { color: colors.textSecondary }]}>
+              {user?.email || '—'}
+            </Text>
+          </View>
           <View
             style={[
-              styles.userBox,
-              { backgroundColor: colors.surface, borderColor: colors.border },
+              styles.rolePill,
+              { backgroundColor: isDemo ? colors.warningBg : colors.successBg },
             ]}
           >
-            <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-              <Text style={{ color: '#fff', fontWeight: '800', fontSize: 18 }}>
-                {(user?.name || user?.email || 'U').charAt(0).toUpperCase()}
-              </Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: colors.textPrimary, fontWeight: '700', fontSize: 15 }}>
-                {user?.name || 'Usuario'}
-              </Text>
-              <Text style={{ color: colors.textSecondary, fontSize: 13 }}>{user?.email}</Text>
-            </View>
-            <View
-              style={[
-                styles.roleBadge,
-                { backgroundColor: isDemo ? colors.warningBg : colors.successBg },
-              ]}
+            <Text
+              style={{
+                color: isDemo ? colors.warning : colors.success,
+                fontWeight: '700',
+                fontSize: 10,
+                letterSpacing: 0.5,
+              }}
             >
-              <Text
-                style={{
-                  color: isDemo ? colors.warning : colors.success,
-                  fontWeight: '700',
-                  fontSize: 11,
-                }}
-              >
-                {isDemo ? 'DEMO' : (user?.role || 'USER').toUpperCase()}
-              </Text>
-            </View>
+              {isDemo ? 'DEMO' : (user?.role || 'user').toUpperCase()}
+            </Text>
           </View>
-          {isDemo && (
-            <View
-              style={[
-                styles.demoNote,
-                { backgroundColor: colors.warningBg, borderColor: colors.warning + '44' },
-              ]}
-            >
-              <Ionicons name="warning-outline" size={14} color={colors.warning} />
-              <Text style={[styles.demoNoteText, { color: colors.warning }]}>
-                Modo demonstração ativo. Dados não são persistidos.
-              </Text>
-            </View>
-          )}
-        </Section>
+        </View>
 
-        <Section title="Aparencia" colors={colors}>
-          <TouchableOpacity
+        {isDemo && (
+          <View
+            style={[
+              styles.alertBanner,
+              { backgroundColor: colors.warningBg, borderColor: colors.warning + '44' },
+            ]}
+          >
+            <Ionicons name="warning-outline" size={15} color={colors.warning} />
+            <Text style={[styles.alertText, { color: colors.warning }]}>
+              Modo demonstração ativo — dados não são persistidos.
+            </Text>
+          </View>
+        )}
+
+        {/* Aparência */}
+        <Section label="APARÊNCIA" colors={colors}>
+          <Row
+            icon={mode === 'dark' ? 'moon' : 'sunny-outline'}
+            iconColor={colors.primary}
+            title={`Modo ${mode === 'dark' ? 'Escuro' : 'Claro'}`}
+            subtitle="Toque para alternar"
             onPress={toggle}
-            style={[styles.row, { backgroundColor: colors.surface, borderColor: colors.border }]}
-          >
-            <Ionicons name={mode === 'dark' ? 'moon' : 'sunny'} size={20} color={colors.primary} />
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 15 }}>
-                Modo {mode === 'dark' ? 'Escuro' : 'Claro'}
-              </Text>
-              <Text style={{ color: colors.textSecondary, fontSize: 12 }}>Toque para alternar</Text>
-            </View>
-            <Ionicons name="swap-horizontal" size={18} color={colors.textTertiary} />
-          </TouchableOpacity>
-        </Section>
-
-        <Section title="Status de Produção" colors={colors}>
-          <Text style={{ color: colors.textSecondary, fontSize: 12, marginBottom: 10 }}>
-            Status dos materiais durante o processo de produção
-          </Text>
-          <View
-            style={[
-              styles.statusGrid,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-                borderWidth: 1,
-                borderRadius: 14,
-              },
-            ]}
-          >
-            {[
-              {
-                label: 'Recebido',
-                color: colors.info,
-                bg: colors.infoBg,
-                icon: 'download-outline',
-              },
-              {
-                label: 'A preparar',
-                color: colors.warning,
-                bg: colors.warningBg,
-                icon: 'time-outline',
-              },
-              {
-                label: 'Preparado',
-                color: colors.success,
-                bg: colors.successBg,
-                icon: 'checkmark-done-circle',
-              },
-              { label: 'Em fábrica', color: colors.info, bg: colors.infoBg, icon: 'sync-circle' },
-            ].map((s, i, arr) => (
+            colors={colors}
+            right={
               <View
-                key={s.label}
                 style={[
-                  styles.statusItem,
-                  i < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border },
-                ]}
-              >
-                <View style={[styles.statusDot, { backgroundColor: s.bg }]}>
-                  <Ionicons name={s.icon as any} size={16} color={s.color} />
-                </View>
-                <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: '500' }}>
-                  {s.label}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </Section>
-
-        <Section title="Catalogo de Produtos" colors={colors}>
-          <TouchableOpacity
-            style={[styles.catalogButton, { backgroundColor: colors.primary }]}
-            onPress={() => router.push('/(tabs)/planilha')}
-          >
-            <Ionicons name="folder-open-outline" size={18} color="#fff" />
-            <Text style={{ color: '#fff', fontWeight: '700', flex: 1 }}>Ver Catálogo Completo</Text>
-            <Ionicons name="chevron-forward" size={16} color="#fff" />
-          </TouchableOpacity>
-          <Text
-            style={{ color: colors.textSecondary, fontSize: 12, marginTop: 12, marginBottom: 8 }}
-          >
-            Principais produtos
-          </Text>
-          <View
-            style={[
-              styles.productList,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-            ]}
-          >
-            {productList.slice(0, 6).map((p, i) => (
-              <View
-                key={i}
-                style={[
-                  styles.productRow,
-                  i < Math.min(6, productList.length) - 1 && {
-                    borderBottomWidth: 1,
-                    borderBottomColor: colors.border,
+                  styles.themeToggle,
+                  {
+                    backgroundColor: mode === 'dark' ? colors.primary : colors.surfaceElevated,
+                    borderColor: colors.border,
                   },
                 ]}
               >
                 <Ionicons
-                  name="flask-outline"
+                  name={mode === 'dark' ? 'moon' : 'sunny'}
                   size={14}
-                  color={colors.primary}
-                  style={{ marginRight: 8 }}
+                  color={mode === 'dark' ? '#000' : colors.textSecondary}
                 />
-                <Text style={{ color: colors.textPrimary, fontSize: 14, flex: 1 }}>{p.name}</Text>
-                <View style={[styles.abbrChip, { backgroundColor: colors.primary + '22' }]}>
-                  <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 11 }}>
-                    {p.abbr}
-                  </Text>
-                </View>
               </View>
-            ))}
-          </View>
+            }
+          />
         </Section>
 
-        <Section title="Pesos de Referencia (Bags)" colors={colors}>
-          <View
-            style={[
-              styles.productList,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-            ]}
-          >
-            {[
-              ['Verango', '400 kg/bag'],
-              ['Ureia', '700 kg/bag'],
-              ['Demais', 'Ver NF'],
-            ].map(([name, weight], i, arr) => (
-              <View
-                key={name}
-                style={[
-                  styles.productRow,
-                  i < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border },
-                ]}
-              >
-                <Text style={{ color: colors.textPrimary, fontSize: 14, flex: 1 }}>{name}</Text>
-                <View style={[styles.abbrChip, { backgroundColor: colors.infoBg }]}>
-                  <Text style={{ color: colors.info, fontWeight: '700', fontSize: 12 }}>
-                    {weight}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </View>
+        {/* Catálogo */}
+        <Section label="CATÁLOGO DE PRODUTOS" colors={colors}>
+          <Row
+            icon="flask-outline"
+            iconColor={colors.secondary}
+            title="Ver Catálogo Completo"
+            subtitle="Produtos, ingredientes e procedimentos"
+            onPress={() => router.push('/(tabs)/products')}
+            colors={colors}
+            chevron
+          />
+          <Row
+            icon="book-outline"
+            iconColor={colors.primary}
+            title="Guia de Formulação"
+            subtitle="Receitas, química e EPIs"
+            onPress={() => router.push('/(tabs)/guide')}
+            colors={colors}
+            chevron
+          />
         </Section>
 
+        {/* Admin */}
         {user?.role === 'admin' && (
-          <Section title="Administracao" colors={colors}>
-            <TouchableOpacity
+          <Section label="ADMINISTRAÇÃO" colors={colors}>
+            <Row
+              icon="shield-checkmark-outline"
+              iconColor={colors.primary}
+              title="Painel Administrativo"
+              subtitle="Gerenciar usuários e dados"
               onPress={() => router.push('/admin')}
-              style={[styles.row, { backgroundColor: colors.surface, borderColor: colors.border }]}
-            >
-              <Ionicons name="shield-checkmark-outline" size={20} color={colors.primary} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 15 }}>
-                  Painel Administrativo
-                </Text>
-                <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
-                  Gerenciar usuarios e dados
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
-            </TouchableOpacity>
+              colors={colors}
+              chevron
+            />
           </Section>
         )}
 
-        <Section title="Links Uteis" colors={colors}>
-          <TouchableOpacity
-            onPress={openDocs}
-            style={[styles.row, { backgroundColor: colors.surface, borderColor: colors.border }]}
-          >
-            <Ionicons name="globe-outline" size={20} color={colors.secondary} />
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: colors.textPrimary, fontWeight: '600', fontSize: 15 }}>
-                Portal Bayer Agricola
-              </Text>
-              <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
-                Informacoes tecnicas oficiais
-              </Text>
-            </View>
-            <Ionicons name="open-outline" size={16} color={colors.textTertiary} />
-          </TouchableOpacity>
+        {/* Links */}
+        <Section label="LINKS ÚTEIS" colors={colors}>
+          <Row
+            icon="globe-outline"
+            iconColor={colors.secondary}
+            title="Portal Bayer Agrícola"
+            subtitle="Informações técnicas oficiais"
+            onPress={() => Linking.openURL('https://www.bayer.com')}
+            colors={colors}
+            right={
+              <Ionicons name="open-outline" size={16} color={colors.textTertiary} />
+            }
+          />
         </Section>
 
+        {/* Sair */}
         <TouchableOpacity
           onPress={handleLogout}
           style={[
-            styles.row,
+            styles.logoutBtn,
             { backgroundColor: colors.dangerBg, borderColor: colors.danger + '55' },
           ]}
         >
           <Ionicons name="log-out-outline" size={20} color={colors.danger} />
-          <Text style={{ color: colors.danger, fontWeight: '700', fontSize: 15 }}>
-            Sair da conta
-          </Text>
+          <Text style={[styles.logoutText, { color: colors.danger }]}>Sair da conta</Text>
         </TouchableOpacity>
 
-        <Text
-          style={{ color: colors.textTertiary, fontSize: 11, textAlign: 'center', marginTop: 8 }}
-        >
+        <Text style={[styles.version, { color: colors.textTertiary }]}>
           Bayer Preparação · v2.0.0
         </Text>
       </ScrollView>
@@ -345,97 +199,161 @@ export default function SettingsScreen() {
 }
 
 function Section({
-  title,
+  label,
   children,
   colors,
 }: {
-  title: string;
+  label: string;
   children: React.ReactNode;
   colors: any;
 }) {
   return (
-    <View style={{ gap: 8 }}>
-      <Text
-        style={{
-          color: colors.textTertiary,
-          fontWeight: '600',
-          fontSize: 11,
-          letterSpacing: 0.8,
-          textTransform: 'uppercase',
-        }}
+    <View style={{ gap: 4 }}>
+      <Text style={[styles.sectionLabel, { color: colors.textTertiary }]}>{label}</Text>
+      <View
+        style={[styles.sectionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
       >
-        {title}
-      </Text>
-      {children}
+        {children}
+      </View>
     </View>
+  );
+}
+
+function Row({
+  icon,
+  iconColor,
+  title,
+  subtitle,
+  onPress,
+  colors,
+  chevron,
+  right,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  iconColor: string;
+  title: string;
+  subtitle?: string;
+  onPress?: () => void;
+  colors: any;
+  chevron?: boolean;
+  right?: React.ReactNode;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.7}
+      style={[styles.row, { borderBottomColor: colors.border }]}
+    >
+      <View style={[styles.iconWrap, { backgroundColor: iconColor + '18' }]}>
+        <Ionicons name={icon} size={19} color={iconColor} />
+      </View>
+      <View style={{ flex: 1, gap: 1 }}>
+        <Text style={[styles.rowTitle, { color: colors.textPrimary }]}>{title}</Text>
+        {subtitle && (
+          <Text style={[styles.rowSubtitle, { color: colors.textSecondary }]}>{subtitle}</Text>
+        )}
+      </View>
+      {right ?? (chevron && <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />)}
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  header: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 14, borderBottomWidth: 1 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+  },
+  headerTitle: { fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
   bayerBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 3,
+    elevation: 2,
   },
-  gearWrap: { marginLeft: 'auto' },
-  title: { fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
-  userBox: {
+  profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    padding: 14,
-    borderRadius: 14,
+    gap: 14,
+    padding: 16,
+    borderRadius: 18,
     borderWidth: 1,
   },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  roleBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  demoNote: {
+  avatarText: { color: '#000', fontWeight: '800', fontSize: 18 },
+  profileName: { fontSize: 16, fontWeight: '700' },
+  profileEmail: { fontSize: 13, marginTop: 1 },
+  rolePill: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8 },
+  alertBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    padding: 10,
-    borderRadius: 10,
+    padding: 12,
+    borderRadius: 12,
     borderWidth: 1,
   },
-  demoNoteText: { fontSize: 12, flex: 1 },
+  alertText: { flex: 1, fontSize: 13, fontWeight: '500' },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    paddingHorizontal: 4,
+    marginBottom: 4,
+  },
+  sectionCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
+    gap: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  catalogButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 14,
-    borderRadius: 12,
-  },
-  statusGrid: { overflow: 'hidden' },
-  statusItem: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
-  statusDot: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+  iconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  productList: { borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
-  productRow: { flexDirection: 'row', alignItems: 'center', padding: 12 },
-  abbrChip: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  rowTitle: { fontSize: 15, fontWeight: '600' },
+  rowSubtitle: { fontSize: 12 },
+  themeToggle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginTop: 4,
+  },
+  logoutText: { fontSize: 15, fontWeight: '700' },
+  version: { fontSize: 11, textAlign: 'center', marginTop: 4 },
 });
