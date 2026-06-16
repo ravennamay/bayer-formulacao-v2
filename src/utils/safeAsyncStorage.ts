@@ -39,8 +39,10 @@ const isCastError = (error: unknown): boolean => {
   );
 };
 
-const logError = (method: string, key: string, error: unknown) => {
-  console.log(`[safeAsyncStorage:${method}] key="${key}"`, error);
+const logError = (method: string, _key: string, error: unknown) => {
+  if (__DEV__) {
+    console.warn(`[safeAsyncStorage:${method}] storage error`, error);
+  }
 };
 
 export const safeAsyncStorage = {
