@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../src/theme';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
@@ -26,6 +27,8 @@ const HIDDEN_TABS = [
 
 export default function TabLayout() {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const bottomPad = Math.max(insets.bottom, 8);
 
   return (
     <Tabs
@@ -37,9 +40,9 @@ export default function TabLayout() {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
           borderTopWidth: 1,
-          paddingBottom: 6,
+          paddingBottom: bottomPad,
           paddingTop: 6,
-          height: 64,
+          height: 52 + bottomPad,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.07,
