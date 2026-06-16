@@ -30,10 +30,13 @@ const webTokenStorage = {
 };
 
 function resolveBase(): string {
+  if (process.env.EXPO_PUBLIC_BACKEND_URL) {
+    return process.env.EXPO_PUBLIC_BACKEND_URL;
+  }
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
     return window.location.origin;
   }
-  return process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://bayer-formulacao.onrender.com';
+  return 'https://bayer-formulacao.onrender.com';
 }
 
 const BASE = resolveBase();
