@@ -8,7 +8,6 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../src/auth';
 import { useTheme } from '../src/theme';
@@ -48,7 +47,6 @@ const DEPARTMENTS: Department[] = [
 export default function SelectDepartment() {
   const { updateDepartment, user } = useAuth();
   const { colors } = useTheme();
-  const router = useRouter();
 
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -61,7 +59,7 @@ export default function SelectDepartment() {
     setLoading(true);
     try {
       await updateDepartment(selected);
-      router.replace('/(tabs)');
+      // AuthGuard in _layout.tsx navigates to /(tabs) once department is set
     } catch {
       Alert.alert('Erro', 'Não foi possível salvar o setor. Tente novamente.');
     } finally {
@@ -69,8 +67,10 @@ export default function SelectDepartment() {
     }
   };
 
-  const skip = () => {
-    router.replace('/(tabs)');
+  const skip = async () => {
+    // Mark as skipped by setting a placeholder so AuthGuard sees department as set
+    await updateDepartment('—').catch(() => {});
+    // AuthGuard in _layout.tsx handles navigation
   };
 
   return (
