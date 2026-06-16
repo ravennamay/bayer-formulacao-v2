@@ -23,9 +23,6 @@ export default function Index() {
     );
   }
   if (user) {
-    if (!user.department) {
-      return <Redirect href="/select-department" />;
-    }
     return <Redirect href="/(tabs)" />;
   }
 
