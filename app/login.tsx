@@ -18,7 +18,6 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
 import { Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -34,7 +33,6 @@ type AuthMode = 'login' | 'register';
 export default function Login() {
   const { login, register } = useAuth();
   const { colors } = useTheme();
-  const router = useRouter();
 
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [identifier, setIdentifier] = useState('');
@@ -82,7 +80,7 @@ export default function Login() {
         } else {
           await safeAsyncStorage.removeItem(REMEMBER_ID_KEY);
         }
-        router.replace('/(tabs)');
+        // AuthGuard in _layout.tsx handles navigation after state updates
       } else {
         const emailVal = identifier.trim().toLowerCase();
         await register(
@@ -95,7 +93,7 @@ export default function Login() {
         if (remember) {
           await safeAsyncStorage.setItem(REMEMBER_ID_KEY, emailVal);
         }
-        router.replace('/select-department');
+        // AuthGuard in _layout.tsx handles navigation after state updates
       }
     } catch (e: any) {
       console.log(e);
