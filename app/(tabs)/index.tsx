@@ -43,72 +43,64 @@ export default function HomeScreen() {
     return { situationCounts, total: items.length };
   }, [items]);
 
-  const greeting = () => {
-    const h = new Date().getHours();
-    return h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
-  };
-
-  const today = new Date().toLocaleDateString('pt-BR', {
-    weekday: 'long', day: 'numeric', month: 'long',
-  });
-
-  const firstName = (user?.name || 'Operador').split(' ')[0];
-
-  const initials = (user?.name || user?.email || 'O')
-    .split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase();
-
-  const showStats = !isDemo && items.length > 0;
+  const showStats = !isDemo;
 
   return (
     <SafeAreaView style={[S.safe, { backgroundColor: colors.background }]} edges={['top']}>
 
       {/* ── HEADER ── */}
-      <View style={[S.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View style={[S.header, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
         <View style={S.headerRow}>
           {/* Logo */}
           <View style={S.logoBg}>
-            <BayerLogo size={26} />
+            <BayerLogo size={28} />
           </View>
 
-          {/* Title + greeting */}
+          {/* Title + brand subtitle */}
           <View style={S.headerMid}>
+            <Text style={[S.headerLabel, { color: colors.primary }]}>Bayer Crop Science</Text>
             <Text style={[S.appTitle, { color: colors.textPrimary }]}>Preparação</Text>
-            <Text style={[S.greetingTxt, { color: colors.textSecondary }]}>
-              {greeting()}, {firstName}
-            </Text>
-            <Text style={[S.dateTxt, { color: colors.textTertiary }]} numberOfLines={1}>
-              {today}
-            </Text>
+            <Text style={[S.subtitleSub, { color: colors.textSecondary }]}>Produção Industrial</Text>
           </View>
 
-          {/* Avatar */}
-          <View style={[S.avatar, { backgroundColor: colors.surfaceElevated, borderColor: colors.primary }]}>
-            <Text style={[S.avatarText, { color: colors.primary }]}>{initials}</Text>
-          </View>
+          {/* Bell icon */}
+          <TouchableOpacity style={[S.bellBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Ionicons name="notifications-outline" size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
         </View>
       </View>
 
-      {/* ── STATS GRID (only when data exists) ── */}
+      {/* ── STATS SECTION (always visible when not demo) ── */}
       {showStats && (
         <View style={[S.statsSection, { backgroundColor: colors.surface }]}>
           <Text style={[S.sectionLabel, { color: colors.textTertiary }]}>SITUAÇÃO HOJE</Text>
-          <View style={S.statsGrid}>
-            {STAT_CONFIG.map(({ key, icon, colorKey }) => {
-              const color = (colors as any)[colorKey];
-              const count = stats.situationCounts[key] ?? 0;
-              return (
-                <View key={key} style={[S.statTile, { backgroundColor: colors.surfaceElevated }]}>
-                  <View style={[S.statIcon, { backgroundColor: color + '22' }]}>
-                    <Ionicons name={icon} size={16} color={color} />
+          {items.length > 0 ? (
+            <View style={S.statsGrid}>
+              {STAT_CONFIG.map(({ key, icon, colorKey }) => {
+                const color = (colors as any)[colorKey];
+                const count = stats.situationCounts[key] ?? 0;
+                return (
+                  <View key={key} style={[S.statTile, { backgroundColor: colors.surfaceElevated }]}>
+                    <View style={[S.statIcon, { backgroundColor: color + '22' }]}>
+                      <Ionicons name={icon} size={16} color={color} />
+                    </View>
+                    <View>
+                      <Text style={[S.statNum, { color }]}>{count}</Text>
+                      <Text style={[S.statLbl, { color: colors.textSecondary }]}>{key}</Text>
+                    </View>
                   </View>
-                  <View>
-                    <Text style={[S.statNum, { color }]}>{count}</Text>
-                    <Text style={[S.statLbl, { color: colors.textSecondary }]}>{key}</Text>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
+                );
+              })}
+            </View>
+          ) : (
+            <View style={[S.emptyStats, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+              <Ionicons name="clipboard-outline" size={28} color={colors.textTertiary} />
+              <View style={{ flex: 1 }}>
+                <Text style={[S.emptyStatsTitle, { color: colors.textSecondary }]}>Sem lançamentos hoje</Text>
+                <Text style={[S.emptyStatsSub, { color: colors.textTertiary }]}>Adicione itens na Planilha para acompanhar aqui</Text>
+              </View>
+            </View>
+          )}
         </View>
       )}
 
@@ -258,33 +250,30 @@ const S = StyleSheet.create({
     flex: 1,
     gap: 1,
   },
+  headerLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
   appTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-    lineHeight: 22,
+    fontSize: 20,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+    lineHeight: 24,
   },
-  greetingTxt: {
-    fontSize: 12,
-    fontWeight: '400',
-    lineHeight: 16,
-  },
-  dateTxt: {
+  subtitleSub: {
     fontSize: 11,
-    textTransform: 'capitalize',
-    lineHeight: 15,
+    letterSpacing: 0.1,
   },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1.5,
+  bellBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 13,
-    fontWeight: '800',
+    flexShrink: 0,
   },
 
   // ── Stats ──
@@ -450,5 +439,25 @@ const S = StyleSheet.create({
     fontSize: 11,
     textAlign: 'center',
     marginTop: 12,
+  },
+
+  emptyStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginTop: 8,
+  },
+  emptyStatsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 19,
+  },
+  emptyStatsSub: {
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 2,
   },
 });
