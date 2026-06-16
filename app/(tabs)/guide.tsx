@@ -45,6 +45,16 @@ const { width, height } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
 const GRID_GAP = 16;
 
+const fmtDur = (raw: string): string => {
+  if (!raw || raw === '—') return '—';
+  return raw
+    .replace(/\s*\([^)]*\)/g, '')
+    .replace(/\s+e\s+\d+\s+segundos?/g, '')
+    .replace(/minutos?/g, 'min')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
 interface CourseCard {
   id: string;
   title: string;
@@ -237,7 +247,7 @@ export default function GuideScreen() {
                 p.category === 'Acaricida' ? 'analytics' : 'flask',
           color: catColor,
           gradientColors: catGradients[p.category] ?? ['#1A3A7A', '#0E1F4A'],
-          duration: p.hasMassageEffect ? (p.massageTime ?? '~5 min') : '—',
+          duration: p.hasMassageEffect ? fmtDur(p.massageTime ?? '~5') : '—',
           level: p.isRecipe ? 'Receita' : 'Produto',
           lessons: p.activeIngredients.length,
           category: 'produtos' as GuideCategory,
@@ -255,7 +265,7 @@ export default function GuideScreen() {
         icon: 'list',
         color: '#10B981',
         gradientColors: ['#10B981', '#059669'],
-        duration: r.massageTime || 'A cronometrar',
+        duration: r.massageTime ? fmtDur(r.massageTime) : 'A cronometrar',
         level: (r.difficulty as any) || 'Intermediário',
         lessons: 1,
         category: 'receita',
@@ -392,12 +402,14 @@ export default function GuideScreen() {
         <View style={styles.cardFooter}>
           <View style={styles.cardBadge}>
             <Ionicons name="time-outline" size={12} color="#FFFFFF" />
-            <Text style={styles.cardBadgeText}>{item.duration} min</Text>
+            <Text style={styles.cardBadgeText}>{item.duration}</Text>
           </View>
-          <View style={styles.cardBadge}>
-            <Ionicons name="book-outline" size={12} color="#FFFFFF" />
-            <Text style={styles.cardBadgeText}>{item.lessons} aulas</Text>
-          </View>
+          {item.category !== 'produtos' && (
+            <View style={styles.cardBadge}>
+              <Ionicons name="layers-outline" size={12} color="#FFFFFF" />
+              <Text style={styles.cardBadgeText}>{item.lessons} itens</Text>
+            </View>
+          )}
         </View>
       </LinearGradient>
     </TouchableOpacity>
@@ -478,7 +490,7 @@ export default function GuideScreen() {
           <TextInput
             value={search}
             onChangeText={setSearch}
-            placeholder="Buscar cursos, produtos, ingredientes..."
+            placeholder="Buscar produtos, ingredientes, procedimentos..."
             placeholderTextColor={colors.textTertiary}
             style={[styles.searchInput, { color: colors.textPrimary }]}
           />
@@ -639,7 +651,14 @@ export default function GuideScreen() {
                 {categories.find(c => c.key === activeCategory)?.label}
               </Text>
               <Text style={[styles.sectionCount, { color: colors.textSecondary }]}>
-                {getCourseCards().length} cursos
+                {getCourseCards().length} {
+                  activeCategory === 'produtos' ? 'produtos' :
+                  activeCategory === 'receita' ? 'receitas' :
+                  activeCategory === 'quimica' ? 'compostos' :
+                  activeCategory === 'procedimentos' ? 'procedimentos' :
+                  activeCategory === 'epis' ? 'EPIs' :
+                  'itens'
+                }
               </Text>
             </View>
             <FlatList
@@ -654,7 +673,7 @@ export default function GuideScreen() {
                 <View style={styles.emptyState}>
                   <Ionicons name="book-outline" size={64} color={colors.textTertiary} />
                   <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                    Nenhum curso encontrado
+                    Nenhum item encontrado
                   </Text>
                 </View>
               }
@@ -700,12 +719,14 @@ export default function GuideScreen() {
                   </View>
                   {selectedItem?.category !== 'receita' && (
                     <>
-                      <View style={styles.modalStat}>
-                        <Ionicons name="book-outline" size={16} color={colors.primary} />
-                        <Text style={[styles.modalStatText, { color: colors.textSecondary }]}>
-                          {selectedItem?.lessons} aula(s)
-                        </Text>
-                      </View>
+                      {selectedItem?.category !== 'produtos' && (
+                        <View style={styles.modalStat}>
+                          <Ionicons name="layers-outline" size={16} color={colors.primary} />
+                          <Text style={[styles.modalStatText, { color: colors.textSecondary }]}>
+                            {selectedItem?.lessons} itens
+                          </Text>
+                        </View>
+                      )}
                       <View style={styles.modalStat}>
                         <Ionicons name="stats-chart-outline" size={16} color={colors.primary} />
                         <Text style={[styles.modalStatText, { color: colors.textSecondary }]}>
@@ -1140,6 +1161,7 @@ const styles = StyleSheet.create({
   cardFooter: {
     flexDirection: 'row',
     gap: 8,
+    justifyContent: 'center',
   },
   cardBadge: {
     flexDirection: 'row',
