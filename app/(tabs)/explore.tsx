@@ -1,546 +1,114 @@
-import React, { useState } from 'react';
+import { Image } from 'expo-image';
+import { Platform, StyleSheet } from 'react-native';
 
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TextInputProps,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ExternalLink } from '../../components/external-link';
+import ParallaxScrollView from '../../components/parallax-scroll-view';
+import { ThemedText } from '../../components/themed-text';
+import { ThemedView } from '../../components/themed-view';
+import { Collapsible } from '../../components/ui/collapsible';
+import { IconSymbol } from '../../components/ui/icon-symbol';
+import { Fonts } from '../../constants/theme';
 
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
-import { BAYER_LOGO_URL, useTheme } from '../src/theme';
-
-type ForgotStep = 'identify' | 'reset' | 'done';
-
-const BASE_URL =
-  typeof window !== 'undefined'
-    ? window.location.origin
-    : 'http://localhost:5000';
-
-export default function ForgotPassword() {
-  const { colors } = useTheme();
-  const router = useRouter();
-
-  const [step, setStep] = useState<ForgotStep>('identify');
-  const [identifier, setIdentifier] = useState('');
-  const [resetToken, setResetToken] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-
-  const [loading, setLoading] = useState(false);
-  const [showPwd, setShowPwd] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-
-  const handleForgotPassword = async () => {
-    if (!identifier.trim()) {
-      Alert.alert('Atenção', 'Informe seu e-mail ou matrícula');
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const res = await fetch(`${BASE_URL}/api/auth/forgot-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier: identifier.trim() }),
-      });
-      const data = await res.json();
-
-      if (!res.ok || !data.found) {
-        Alert.alert('Não encontrado', data.message || 'Usuário não encontrado. Verifique o e-mail ou matrícula.');
-        return;
-      }
-
-      setResetToken(data.token);
-      setStep('reset');
-    } catch {
-      Alert.alert('Erro', 'Falha na conexão. Tente novamente.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResetPassword = async () => {
-    if (!password || !confirmPassword) {
-      Alert.alert('Atenção', 'Preencha todos os campos');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      Alert.alert('Atenção', 'As senhas não correspondem');
-      return;
-    }
-
-    if (password.length < 6) {
-      Alert.alert('Atenção', 'A senha deve ter pelo menos 6 caracteres');
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const res = await fetch(`${BASE_URL}/api/auth/reset-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: resetToken, password }),
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        Alert.alert('Erro', data.detail || 'Falha ao redefinir senha');
-        return;
-      }
-
-      setStep('done');
-    } catch {
-      Alert.alert('Erro', 'Falha na conexão. Tente novamente.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
+export default function TabTwoScreen() {
   return (
-    <SafeAreaView
-      style={[
-        styles.safe,
-        {
-          backgroundColor: colors.background,
-        },
-      ]}
-      edges={['top', 'bottom']}
+    <ParallaxScrollView
+      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
+      headerImage={
+        <IconSymbol
+          size={310}
+          color="#808080"
+          name="chevron.left.forwardslash.chevron.right"
+          style={styles.headerImage}
+        />
+      }
     >
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+      <ThemedView style={styles.titleContainer}>
+        <ThemedText
+          type="title"
+          style={{
+            fontFamily: Fonts.rounded,
+          }}
         >
-          {/* Header */}
-          <View style={styles.brandRow}>
-            <View
-              style={[
-                styles.logoBg,
-                {
-                  backgroundColor: '#FFFFFF',
-                  borderColor: colors.border,
-                },
-              ]}
-            >
-              <Image
-                source={{
-                  uri: BAYER_LOGO_URL,
-                }}
-                style={styles.logoImg}
-                resizeMode="contain"
-              />
-            </View>
-
-            <View style={{ flex: 1 }}>
-              <Text
-                style={[
-                  styles.brand,
-                  {
-                    color: colors.textPrimary,
-                  },
-                ]}
-              >
-                Formulação
-              </Text>
-
-              <Text
-                style={[
-                  styles.brandSub,
-                  {
-                    color: colors.textSecondary,
-                  },
-                ]}
-              >
-                Bayer · Controle Operacional
-              </Text>
-            </View>
-          </View>
-
-          {/* Card */}
-          <View
-            style={[
-              styles.heroCard,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            {/* Header */}
-            <View style={styles.heroHeader}>
-              <TouchableOpacity
-                onPress={() => router.back()}
-                hitSlop={10}
-                style={{ marginRight: 8 }}
-              >
-                <Ionicons name="chevron-back" size={24} color={colors.primary} />
-              </TouchableOpacity>
-
-              <View
-                style={[
-                  styles.heroBadge,
-                  {
-                    backgroundColor: colors.primary + '22',
-                  },
-                ]}
-              >
-                <Ionicons name="lock-closed-outline" size={14} color={colors.primary} />
-
-                <Text
-                  style={{
-                    color: colors.primary,
-                    fontSize: 11,
-                    fontWeight: '700',
-                  }}
-                >
-                  SEGURANÇA
-                </Text>
-              </View>
-            </View>
-
-            {step === 'identify' && (
-              <>
-                <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>
-                  Recuperar senha
-                </Text>
-                <Text style={[styles.heroSub, { color: colors.textSecondary }]}>
-                  Informe o e-mail ou matrícula associado à sua conta.
-                </Text>
-
-                <Field label="E-mail ou Matrícula" colors={colors}>
-                  <Input
-                    icon="person-outline"
-                    value={identifier}
-                    onChangeText={setIdentifier}
-                    placeholder="seu@bayer.com ou matrícula"
-                    autoCapitalize="none"
-                    keyboardType="email-address"
-                    colors={colors}
-                    editable={!loading}
-                  />
-                </Field>
-
-                <TouchableOpacity
-                  onPress={handleForgotPassword}
-                  disabled={loading}
-                  style={[styles.button, { backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }]}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <>
-                      <Ionicons name="search-outline" size={18} color="#fff" />
-                      <Text style={styles.buttonText}>Verificar conta</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              </>
-            )}
-
-            {step === 'reset' && (
-              <>
-                <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>
-                  Nova senha
-                </Text>
-                <Text style={[styles.heroSub, { color: colors.textSecondary }]}>
-                  Conta verificada. Defina uma nova senha segura.
-                </Text>
-
-                <Field label="Nova senha" colors={colors}>
-                  <Input
-                    icon="lock-closed-outline"
-                    value={password}
-                    onChangeText={setPassword}
-                    placeholder="Mínimo 6 caracteres"
-                    secureTextEntry={!showPwd}
-                    colors={colors}
-                    rightIcon={showPwd ? 'eye-off-outline' : 'eye-outline'}
-                    onRightPress={() => setShowPwd(s => !s)}
-                    editable={!loading}
-                  />
-                </Field>
-
-                <Field label="Confirmar senha" colors={colors}>
-                  <Input
-                    icon="lock-closed-outline"
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                    placeholder="Repita a nova senha"
-                    secureTextEntry={!showConfirm}
-                    colors={colors}
-                    rightIcon={showConfirm ? 'eye-off-outline' : 'eye-outline'}
-                    onRightPress={() => setShowConfirm(s => !s)}
-                    editable={!loading}
-                  />
-                </Field>
-
-                <TouchableOpacity
-                  onPress={handleResetPassword}
-                  disabled={loading}
-                  style={[styles.button, { backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }]}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <>
-                      <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
-                      <Text style={styles.buttonText}>Redefinir senha</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              </>
-            )}
-
-            {step === 'done' && (
-              <View style={styles.successBlock}>
-                <View style={[styles.successIcon, { backgroundColor: colors.primary + '22' }]}>
-                  <Ionicons name="checkmark-circle" size={52} color={colors.primary} />
-                </View>
-                <Text style={[styles.heroTitle, { color: colors.textPrimary, textAlign: 'center' }]}>
-                  Senha redefinida!
-                </Text>
-                <Text style={[styles.heroSub, { color: colors.textSecondary, textAlign: 'center' }]}>
-                  Sua senha foi atualizada com sucesso. Faça login com a nova senha.
-                </Text>
-                <TouchableOpacity
-                  onPress={() => router.replace('/login')}
-                  style={[styles.button, { backgroundColor: colors.primary }]}
-                >
-                  <Ionicons name="log-in-outline" size={18} color="#fff" />
-                  <Text style={styles.buttonText}>Ir para o login</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
-  );
-}
-
-type FieldProps = {
-  label: string;
-  children: React.ReactNode;
-  colors: any;
-};
-
-function Field({ label, children, colors }: FieldProps) {
-  return (
-    <View style={{ marginTop: 12 }}>
-      <Text
-        style={[
-          styles.label,
-          {
-            color: colors.textSecondary,
-          },
-        ]}
-      >
-        {label}
-      </Text>
-
-      {children}
-    </View>
-  );
-}
-
-type InputProps = TextInputProps & {
-  icon: keyof typeof Ionicons.glyphMap;
-  rightIcon?: keyof typeof Ionicons.glyphMap;
-  onRightPress?: () => void;
-  colors: any;
-};
-
-function Input({ icon, rightIcon, onRightPress, colors, ...props }: InputProps) {
-  const [focused, setFocused] = React.useState(false);
-
-  return (
-    <View
-      style={[
-        styles.input,
-        {
-          backgroundColor: colors.surfaceElevated,
-          borderColor: focused ? colors.primary : colors.border,
-        },
-      ]}
-    >
-      <Ionicons name={icon} size={18} color={colors.textTertiary} />
-
-      <TextInput
-        {...props}
-        placeholderTextColor={colors.textTertiary}
-        onFocus={e => {
-          setFocused(true);
-
-          props.onFocus?.(e);
-        }}
-        onBlur={e => {
-          setFocused(false);
-
-          props.onBlur?.(e);
-        }}
-        style={[
-          styles.inputText,
-          {
-            color: colors.textPrimary,
-          },
-        ]}
-      />
-
-      {rightIcon && (
-        <TouchableOpacity onPress={onRightPress} hitSlop={10}>
-          <Ionicons name={rightIcon} size={18} color={colors.textTertiary} />
-        </TouchableOpacity>
-      )}
-    </View>
+          Explore
+        </ThemedText>
+      </ThemedView>
+      <ThemedText>This app includes example code to help you get started.</ThemedText>
+      <Collapsible title="File-based routing">
+        <ThemedText>
+          This app has two screens:{' '}
+          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
+          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
+        </ThemedText>
+        <ThemedText>
+          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
+          sets up the tab navigator.
+        </ThemedText>
+        <ExternalLink href="https://docs.expo.dev/router/introduction">
+          <ThemedText type="link">Learn more</ThemedText>
+        </ExternalLink>
+      </Collapsible>
+      <Collapsible title="Android, iOS, and web support">
+        <ThemedText>
+          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
+          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
+        </ThemedText>
+      </Collapsible>
+      <Collapsible title="Images">
+        <ThemedText>
+          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
+          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
+          different screen densities
+        </ThemedText>
+        <Image
+          source={require('../../assets/images/react-logo.png')}
+          style={{ width: 100, height: 100, alignSelf: 'center' }}
+        />
+        <ExternalLink href="https://reactnative.dev/docs/images">
+          <ThemedText type="link">Learn more</ThemedText>
+        </ExternalLink>
+      </Collapsible>
+      <Collapsible title="Light and dark mode components">
+        <ThemedText>
+          This template has light and dark mode support. The{' '}
+          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
+          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
+        </ThemedText>
+        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
+          <ThemedText type="link">Learn more</ThemedText>
+        </ExternalLink>
+      </Collapsible>
+      <Collapsible title="Animations">
+        <ThemedText>
+          This template includes an example of an animated component. The{' '}
+          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
+          the powerful{' '}
+          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
+            react-native-reanimated
+          </ThemedText>{' '}
+          library to create a waving hand animation.
+        </ThemedText>
+        {Platform.select({
+          ios: (
+            <ThemedText>
+              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
+              component provides a parallax effect for the header image.
+            </ThemedText>
+          ),
+        })}
+      </Collapsible>
+    </ParallaxScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
+  headerImage: {
+    color: '#808080',
+    bottom: -90,
+    left: -35,
+    position: 'absolute',
   },
-
-  scroll: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-
-  brandRow: {
+  titleContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    marginBottom: 20,
-    marginTop: 8,
-  },
-
-  logoBg: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    padding: 6,
-  },
-
-  logoImg: {
-    width: '100%',
-    height: '100%',
-  },
-
-  brand: {
-    fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-  },
-
-  brandSub: {
-    fontSize: 12,
-    marginTop: 2,
-    fontWeight: '500',
-  },
-
-  heroCard: {
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 20,
-  },
-
-  heroHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-
-  heroBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-  },
-
-  heroTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    marginBottom: 6,
-  },
-
-  heroSub: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 16,
-  },
-
-  label: {
-    fontSize: 11,
-    fontWeight: '600',
-    marginBottom: 6,
-    textTransform: 'uppercase',
-  },
-
-  input: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 14,
-    height: 50,
-    borderRadius: 12,
-    borderWidth: 1.5,
-  },
-
-  inputText: {
-    flex: 1,
-    fontSize: 15,
-    paddingVertical: 0,
-  },
-
-  successBlock: {
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  successIcon: {
-    width: 88,
-    height: 88,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-
-  button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     gap: 8,
-    height: 52,
-    borderRadius: 12,
-    marginTop: 20,
-  },
-
-  buttonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
   },
 });
