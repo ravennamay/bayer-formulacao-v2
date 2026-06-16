@@ -1,14 +1,18 @@
 import axios, { AxiosInstance } from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-const BASE = process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://bayer-formulacao.onrender.com';
-
-if (!BASE) {
-  throw new Error('Backend URL não configurada');
+function resolveBase(): string {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  return process.env.EXPO_PUBLIC_BACKEND_URL ?? 'https://bayer-formulacao.onrender.com';
 }
 
-console.log('BASE:', process.env.EXPO_PUBLIC_BACKEND_URL);
+const BASE = resolveBase();
+
+console.log('BASE:', BASE);
 const TOKEN_KEY = 'bayer_auth_token';
 
 export type User = {
@@ -16,16 +20,19 @@ export type User = {
   email: string;
   name: string;
   role: string;
+  matricula?: string;
+  department?: string;
 };
 
 type AuthContextType = {
   user: User | null;
   token: string | null;
   loading: boolean;
-  isDemo: boolean;
   api: AxiosInstance;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
+  isDemo: boolean;
+  login: (identifier: string, password: string) => Promise<void>;
+  register: (email: string, password: string, name: string, matricula?: string) => Promise<void>;
+  updateDepartment: (department: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -98,8 +105,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     })();
   }, []);
 
-  const login = async (email: string, password: string) => {
-    const r = await api.post('/auth/login', { email, password });
+  const login = async (identifier: string, password: string) => {
+    const r = await api.post('/auth/login', { identifier, password });
 
     const tk = r.data.access_token as string;
 
@@ -110,11 +117,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(r.data.user);
   };
 
-  const register = async (email: string, password: string, name: string) => {
+  const register = async (email: string, password: string, name: string, matricula?: string) => {
     const r = await api.post('/auth/register', {
       email,
       password,
       name,
+      ...(matricula ? { matricula } : {}),
     });
 
     const tk = r.data.access_token as string;
@@ -126,16 +134,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(r.data.user);
   };
 
+  const updateDepartment = async (department: string) => {
+    const r = await api.patch('/auth/me', { department });
+    setUser(prev => prev ? { ...prev, department: r.data.department } : prev);
+  };
+
   const logout = async () => {
     await safeSecureStore.remove(TOKEN_KEY);
 
     setAuthHeader(null);
     setToken(null);
     setUser(null);
+    setIsDemo(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, isDemo, api, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, api, isDemo, login, register, updateDepartment, logout }}>
       {children}
     </AuthContext.Provider>
   );
