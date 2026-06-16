@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
@@ -40,7 +41,7 @@ const buildLast14Days = (): string[] => {
 };
 
 export default function ReportScreen() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const [date, setDate] = useState(todayISO());
   const [text, setText] = useState('');
   const [count, setCount] = useState(0);
@@ -104,25 +105,35 @@ export default function ReportScreen() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <View>
-            <Text style={[styles.title, { color: colors.textPrimary }]}>Relatório WhatsApp</Text>
-            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-              {formatDateLabel(date)} · {count} {count === 1 ? 'item' : 'itens'}
-            </Text>
+        <LinearGradient
+          colors={isDark ? ['#1A3A25', '#13212C'] : ['#F0FAF0', '#FFFFFF']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.header, { borderBottomColor: colors.border }]}
+        >
+          <View style={styles.headerBadge}>
+            <Ionicons name="logo-whatsapp" size={13} color={colors.whatsapp} />
+            <Text style={[styles.headerBadgeText, { color: colors.whatsapp }]}>RELATÓRIO</Text>
           </View>
-
-          <TouchableOpacity
-            testID="refresh-report"
-            onPress={generate}
-            style={[
-              styles.iconBtn,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-            ]}
-          >
-            <Ionicons name="refresh" size={18} color={colors.textPrimary} />
-          </TouchableOpacity>
-        </View>
+          <View style={styles.headerBottom}>
+            <View>
+              <Text style={[styles.title, { color: colors.textPrimary }]}>Relatório de Turno</Text>
+              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                {formatDateLabel(date)} · {count} {count === 1 ? 'item' : 'itens'}
+              </Text>
+            </View>
+            <TouchableOpacity
+              testID="refresh-report"
+              onPress={generate}
+              style={[
+                styles.iconBtn,
+                { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
+              ]}
+            >
+              <Ionicons name="refresh" size={18} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
 
         <ScrollView
           horizontal
@@ -277,15 +288,28 @@ export default function ReportScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   header: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 12,
+    paddingTop: 12,
+    paddingBottom: 14,
     borderBottomWidth: 1,
+    gap: 6,
   },
-  title: { fontSize: 22, fontWeight: '800' },
+  headerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  headerBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+  },
+  headerBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  title: { fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
   subtitle: { fontSize: 13, marginTop: 2 },
   iconBtn: {
     width: 38,
