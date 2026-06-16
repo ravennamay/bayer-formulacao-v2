@@ -16,9 +16,6 @@ type StatusConfig = {
 
 // ---------- Map ----------
 const MAP: Record<string, StatusConfig> = {
-  Disponível: { color: 'success', bg: 'successBg', icon: 'checkmark-circle' },
-  Baixo: { color: 'warning', bg: 'warningBg', icon: 'alert-circle' },
-  Indisponível: { color: 'danger', bg: 'dangerBg', icon: 'close-circle' },
   Preparado: { color: 'success', bg: 'successBg', icon: 'checkmark-done-circle' },
   'A preparar': { color: 'warning', bg: 'warningBg', icon: 'time-outline' },
   'Em fábrica': { color: 'info', bg: 'infoBg', icon: 'sync-circle' },
@@ -28,9 +25,10 @@ const MAP: Record<string, StatusConfig> = {
 type Props = {
   label: string;
   testID?: string;
+  small?: boolean;
 };
 
-export default function StatusPill({ label, testID }: Props) {
+export default function StatusPill({ label, testID, small }: Props) {
   const { colors } = useTheme();
 
   const cfg: StatusConfig = MAP[label] ?? {
@@ -43,9 +41,9 @@ export default function StatusPill({ label, testID }: Props) {
   const bg = colors[cfg.bg];
 
   return (
-    <View testID={testID} style={[styles.pill, { backgroundColor: bg }]}>
-      <Ionicons name={cfg.icon} size={13} color={fg} />
-      <Text style={[styles.text, { color: fg }]}>{label}</Text>
+    <View testID={testID} style={[styles.pill, small && styles.pillSmall, { backgroundColor: bg }]}>
+      <Ionicons name={cfg.icon} size={small ? 11 : 13} color={fg} />
+      <Text style={[styles.text, small && styles.textSmall, { color: fg }]}>{label}</Text>
     </View>
   );
 }
@@ -61,8 +59,17 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     alignSelf: 'flex-start',
   },
+  pillSmall: {
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 5,
+  },
   text: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  textSmall: {
+    fontSize: 10,
+    fontWeight: '500',
   },
 });
