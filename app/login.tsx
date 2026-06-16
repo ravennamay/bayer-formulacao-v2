@@ -17,37 +17,32 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
-import { Link, useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import { Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
+import safeAsyncStorage from '../src/utils/safeAsyncStorage';
 import { useAuth } from '../src/auth';
 import { BAYER_LOGO_URL, useTheme } from '../src/theme';
 
 const REMEMBER_KEY = 'bayer_remember';
-const REMEMBER_EMAIL_KEY = 'bayer_remember_email';
+const REMEMBER_ID_KEY = 'bayer_remember_id';
 
 type AuthMode = 'login' | 'register';
 
 export default function Login() {
   const { login, register } = useAuth();
-
-  const { colors, mode } = useTheme();
-
+  const { colors } = useTheme();
   const router = useRouter();
 
   const [authMode, setAuthMode] = useState<AuthMode>('login');
-
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
-
   const [name, setName] = useState('');
-
+  const [matricula, setMatricula] = useState('');
   const [loading, setLoading] = useState(false);
-
   const [showPwd, setShowPwd] = useState(false);
-
   const [remember, setRemember] = useState(true);
 
   useEffect(() => {
@@ -56,16 +51,12 @@ export default function Login() {
 
   const loadRememberData = async () => {
     try {
-      const rememberValue = await AsyncStorage.getItem(REMEMBER_KEY);
-
-      const savedEmail = await AsyncStorage.getItem(REMEMBER_EMAIL_KEY);
-
+      const rememberValue = await safeAsyncStorage.getItem(REMEMBER_KEY);
+      const savedId = await safeAsyncStorage.getItem(REMEMBER_ID_KEY);
       const shouldRemember = rememberValue !== '0';
-
       setRemember(shouldRemember);
-
-      if (shouldRemember && savedEmail) {
-        setEmail(savedEmail);
+      if (shouldRemember && savedId) {
+        setIdentifier(savedId);
       }
     } catch (err) {
       console.log(err);
@@ -73,43 +64,42 @@ export default function Login() {
   };
 
   const submit = async () => {
-    if (!email || !password) {
-      Alert.alert('Atenção', 'Preencha e-mail e senha.');
-
+    if (!identifier || !password) {
+      Alert.alert('Atenção', 'Preencha o identificador e senha.');
       return;
     }
-
     if (authMode === 'register' && !name.trim()) {
       Alert.alert('Atenção', 'Informe seu nome.');
-
       return;
     }
-
     setLoading(true);
-
     try {
-      const cleanEmail = email.trim().toLowerCase();
-
       if (authMode === 'login') {
-        await login(cleanEmail, password);
+        await login(identifier.trim(), password);
+        await safeAsyncStorage.setItem(REMEMBER_KEY, remember ? '1' : '0');
+        if (remember) {
+          await safeAsyncStorage.setItem(REMEMBER_ID_KEY, identifier.trim());
+        } else {
+          await safeAsyncStorage.removeItem(REMEMBER_ID_KEY);
+        }
+        router.replace('/(tabs)');
       } else {
-        await register(cleanEmail, password, name.trim());
+        const emailVal = identifier.trim().toLowerCase();
+        await register(
+          emailVal,
+          password,
+          name.trim(),
+          matricula.trim() || undefined,
+        );
+        await safeAsyncStorage.setItem(REMEMBER_KEY, remember ? '1' : '0');
+        if (remember) {
+          await safeAsyncStorage.setItem(REMEMBER_ID_KEY, emailVal);
+        }
+        router.replace('/select-department');
       }
-
-      await AsyncStorage.setItem(REMEMBER_KEY, remember ? '1' : '0');
-
-      if (remember) {
-        await AsyncStorage.setItem(REMEMBER_EMAIL_KEY, cleanEmail);
-      } else {
-        await AsyncStorage.removeItem(REMEMBER_EMAIL_KEY);
-      }
-
-      router.replace('/(tabs)');
     } catch (e: any) {
       console.log(e);
-
       const detail = e?.response?.data?.detail;
-
       const msg =
         typeof detail === 'string'
           ? detail
@@ -118,7 +108,6 @@ export default function Login() {
             : e?.message?.includes('Network')
               ? 'Sem conexão com o servidor.'
               : 'Falha ao autenticar';
-
       Alert.alert('Erro', msg);
     } finally {
       setLoading(false);
@@ -126,178 +115,104 @@ export default function Login() {
   };
 
   return (
-    <SafeAreaView
-      style={[
-        styles.safe,
-        {
-          backgroundColor: colors.background,
-        },
-      ]}
-      edges={['top', 'bottom']}
-    >
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+    <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
-          <View style={styles.brandRow}>
-            <View
-              style={[
-                styles.logoBg,
-                {
-                  backgroundColor: '#FFFFFF',
-                  borderColor: colors.border,
-                },
-              ]}
-            >
-              <Image
-                source={{
-                  uri: BAYER_LOGO_URL,
-                }}
-                style={styles.logoImg}
-                resizeMode="contain"
-              />
+          {/* ── GRADIENT HERO ────────────────────────────────────── */}
+          <LinearGradient
+            colors={['#6BAD1C', colors.primary, colors.primaryActive]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.heroGradient}
+          >
+            {/* subtle dark veil so white text pops without shadow */}
+            <View style={styles.heroVeil} pointerEvents="none" />
+
+            {/* thematic science / agro icons scattered */}
+            <View style={styles.patternOverlay} pointerEvents="none">
+              <Ionicons name="flask-outline"       size={28} color="#fff" style={{ position:'absolute', top: 14,  left: 18,  opacity: 0.13, transform:[{rotate:'-15deg'}] }} />
+              <Ionicons name="leaf-outline"        size={22} color="#fff" style={{ position:'absolute', top: 52,  right: 24, opacity: 0.12, transform:[{rotate:'20deg'}] }} />
+              <Ionicons name="cellular-outline"    size={32} color="#fff" style={{ position:'absolute', top: 10,  right: 60, opacity: 0.10 }} />
+              <Ionicons name="aperture-outline"    size={20} color="#fff" style={{ position:'absolute', top: 80,  left: 46,  opacity: 0.10, transform:[{rotate:'30deg'}] }} />
+              <Ionicons name="pulse-outline"       size={26} color="#fff" style={{ position:'absolute', bottom:30, left:14,  opacity: 0.11 }} />
+              <Ionicons name="git-network-outline" size={24} color="#fff" style={{ position:'absolute', bottom:18, right:30, opacity: 0.12, transform:[{rotate:'-10deg'}] }} />
+              <Ionicons name="planet-outline"      size={18} color="#fff" style={{ position:'absolute', bottom:50, left:80,  opacity: 0.09 }} />
+              <Ionicons name="flask-outline"       size={16} color="#fff" style={{ position:'absolute', top: 30,  left:140,  opacity: 0.08, transform:[{rotate:'40deg'}] }} />
             </View>
 
-            <View style={{ flex: 1 }}>
-              <Text
-                style={[
-                  styles.brand,
-                  {
-                    color: colors.textPrimary,
-                  },
-                ]}
-              >
-                Formulação
-              </Text>
+            <View style={styles.heroContent}>
+              <View style={styles.logoWrap}>
+                <Image
+                  source={{ uri: BAYER_LOGO_URL }}
+                  style={styles.logoImg}
+                  resizeMode="contain"
+                />
+              </View>
+              <Text style={styles.heroTitle}>Preparação</Text>
+              <Text style={styles.heroSub}>Bayer · Controle Operacional</Text>
 
-              <Text
-                style={[
-                  styles.brandSub,
-                  {
-                    color: colors.textSecondary,
-                  },
-                ]}
-              >
-                Bayer · Controle Operacional
-              </Text>
+              <View style={styles.heroBadgeRow}>
+                <Ionicons name="flask-outline" size={12} color="rgba(255,255,255,0.9)" />
+                <Text style={styles.heroBadgeText}>PRODUÇÃO INDUSTRIAL</Text>
+              </View>
             </View>
-          </View>
+          </LinearGradient>
 
-          {/* Card */}
+          {/* ── FORM CARD ─────────────────────────────────────────── */}
           <View
             style={[
-              styles.heroCard,
+              styles.card,
               {
                 backgroundColor: colors.surface,
                 borderColor: colors.border,
+                shadowColor: '#0B5E30',
               },
             ]}
           >
-            <View style={styles.heroHeader}>
-              <View
-                style={[
-                  styles.heroBadge,
-                  {
-                    backgroundColor: colors.primary + '22',
-                  },
-                ]}
-              >
-                <Ionicons name="flask-outline" size={14} color={colors.primary} />
-
-                <Text
-                  style={{
-                    color: colors.primary,
-                    fontSize: 11,
-                    fontWeight: '700',
-                  }}
-                >
-                  PRODUÇÃO INDUSTRIAL
-                </Text>
-              </View>
-            </View>
-
-            <Text
-              style={[
-                styles.heroTitle,
-                {
-                  color: colors.textPrimary,
-                },
-              ]}
-            >
-              {authMode === 'login' ? 'Bem-vindo de volta' : 'Criar nova conta'}
-            </Text>
-
-            <Text
-              style={[
-                styles.heroSub,
-                {
-                  color: colors.textSecondary,
-                },
-              ]}
-            >
-              {authMode === 'login'
-                ? 'Acesse sua planilha operacional.'
-                : 'Cadastre-se para colaborar com o turno.'}
-            </Text>
-
-            {/* Tabs */}
+            {/* Auth mode tabs */}
             <View
               style={[
                 styles.tabs,
-                {
-                  backgroundColor: colors.surfaceElevated,
-                  borderColor: colors.border,
-                },
+                { backgroundColor: colors.surfaceElevated, borderColor: colors.border },
               ]}
             >
-              <TouchableOpacity
-                onPress={() => setAuthMode('login')}
-                style={[
-                  styles.tab,
-                  authMode === 'login' && {
-                    backgroundColor: colors.primary,
-                  },
-                ]}
-              >
-                <Text
-                  style={{
-                    color: authMode === 'login' ? '#fff' : colors.textSecondary,
-                    fontWeight: '700',
-                  }}
+              {(['login', 'register'] as AuthMode[]).map(m => (
+                <TouchableOpacity
+                  key={m}
+                  onPress={() => setAuthMode(m)}
+                  style={[
+                    styles.tab,
+                    authMode === m && { backgroundColor: colors.primary },
+                  ]}
                 >
-                  Entrar
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => setAuthMode('register')}
-                style={[
-                  styles.tab,
-                  authMode === 'register' && {
-                    backgroundColor: colors.primary,
-                  },
-                ]}
-              >
-                <Text
-                  style={{
-                    color: authMode === 'register' ? '#fff' : colors.textSecondary,
-                    fontWeight: '700',
-                  }}
-                >
-                  Criar conta
-                </Text>
-              </TouchableOpacity>
+                  <Ionicons
+                    name={m === 'login' ? 'log-in-outline' : 'person-add-outline'}
+                    size={14}
+                    color={authMode === m ? '#fff' : colors.textSecondary}
+                  />
+                  <Text style={{ color: authMode === m ? '#fff' : colors.textSecondary, fontWeight: '700', fontSize: 13 }}>
+                    {m === 'login' ? 'Entrar' : 'Criar conta'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
 
-            {/* Nome */}
+            <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>
+              {authMode === 'login' ? 'Bem-vindo de volta' : 'Criar nova conta'}
+            </Text>
+            <Text style={[styles.cardSub, { color: colors.textSecondary }]}>
+              {authMode === 'login'
+                ? 'Acesse sua planilha operacional'
+                : 'Cadastre-se para colaborar com o turno'}
+            </Text>
+
+            {/* Fields */}
             {authMode === 'register' && (
-              <Field label="Nome" colors={colors}>
+              <Field label="Nome completo" colors={colors}>
                 <Input
                   icon="person-outline"
                   value={name}
@@ -308,20 +223,32 @@ export default function Login() {
               </Field>
             )}
 
-            {/* Email */}
-            <Field label="E-mail" colors={colors}>
+            <Field label={authMode === 'login' ? 'E-mail ou Matrícula' : 'E-mail'} colors={colors}>
               <Input
-                icon="mail-outline"
-                value={email}
-                onChangeText={setEmail}
-                placeholder="seu@bayer.com"
+                icon={authMode === 'login' ? 'person-outline' : 'mail-outline'}
+                value={identifier}
+                onChangeText={setIdentifier}
+                placeholder={authMode === 'login' ? 'seu@bayer.com ou matrícula' : 'seu@bayer.com'}
                 autoCapitalize="none"
                 keyboardType="email-address"
                 colors={colors}
               />
             </Field>
 
-            {/* Senha */}
+            {authMode === 'register' && (
+              <Field label="Matrícula (opcional)" colors={colors}>
+                <Input
+                  icon="id-card-outline"
+                  value={matricula}
+                  onChangeText={setMatricula}
+                  placeholder="Ex: 16071"
+                  autoCapitalize="none"
+                  keyboardType="default"
+                  colors={colors}
+                />
+              </Field>
+            )}
+
             <Field label="Senha" colors={colors}>
               <Input
                 icon="lock-closed-outline"
@@ -335,38 +262,21 @@ export default function Login() {
               />
             </Field>
 
-            {/* Remember */}
+            {/* Remember + Forgot */}
             <View style={styles.rowBetween}>
               <View style={styles.rememberRow}>
                 <Switch
                   value={remember}
                   onValueChange={setRemember}
-                  trackColor={{
-                    false: colors.border,
-                    true: colors.primary,
-                  }}
+                  trackColor={{ false: colors.border, true: colors.primary }}
                   thumbColor="#fff"
                 />
-
-                <Text
-                  style={{
-                    color: colors.textSecondary,
-                    fontSize: 13,
-                  }}
-                >
-                  Lembrar de mim
-                </Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Lembrar de mim</Text>
               </View>
-
               {authMode === 'login' && (
                 <Link href="/forgot-password" asChild>
                   <TouchableOpacity>
-                    <Text
-                      style={{
-                        color: colors.secondary,
-                        fontWeight: '600',
-                      }}
-                    >
+                    <Text style={{ color: colors.secondary, fontWeight: '600', fontSize: 13 }}>
                       Esqueci a senha
                     </Text>
                   </TouchableOpacity>
@@ -374,17 +284,12 @@ export default function Login() {
               )}
             </View>
 
-            {/* Botão */}
+            {/* CTA button */}
             <TouchableOpacity
               onPress={submit}
               disabled={loading}
-              style={[
-                styles.button,
-                {
-                  backgroundColor: colors.primary,
-                  opacity: loading ? 0.7 : 1,
-                },
-              ]}
+              activeOpacity={0.88}
+              style={[styles.button, { backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }]}
             >
               {loading ? (
                 <ActivityIndicator color="#fff" />
@@ -395,13 +300,20 @@ export default function Login() {
                     size={18}
                     color="#fff"
                   />
-
-                  <Text style={styles.buttonText}>
+                  <Text style={[styles.buttonText, { color: '#fff' }]}>
                     {authMode === 'login' ? 'Entrar' : 'Criar conta'}
                   </Text>
                 </>
               )}
             </TouchableOpacity>
+
+            {/* Footer info */}
+            <View style={[styles.footerInfo, { borderTopColor: colors.border }]}>
+              <Ionicons name="shield-checkmark-outline" size={13} color={colors.textTertiary} />
+              <Text style={{ color: colors.textTertiary, fontSize: 11, flex: 1 }}>
+                Acesso restrito a colaboradores Bayer autorizados
+              </Text>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -409,26 +321,12 @@ export default function Login() {
   );
 }
 
-type FieldProps = {
-  label: string;
-  children: React.ReactNode;
-  colors: any;
-};
+type FieldProps = { label: string; children: React.ReactNode; colors: any };
 
 function Field({ label, children, colors }: FieldProps) {
   return (
-    <View style={{ marginTop: 12 }}>
-      <Text
-        style={[
-          styles.label,
-          {
-            color: colors.textSecondary,
-          },
-        ]}
-      >
-        {label}
-      </Text>
-
+    <View style={{ marginTop: 14 }}>
+      <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
       {children}
     </View>
   );
@@ -443,7 +341,6 @@ type InputProps = TextInputProps & {
 
 function Input({ icon, rightIcon, onRightPress, colors, ...props }: InputProps) {
   const [focused, setFocused] = useState(false);
-
   return (
     <View
       style={[
@@ -454,29 +351,14 @@ function Input({ icon, rightIcon, onRightPress, colors, ...props }: InputProps) 
         },
       ]}
     >
-      <Ionicons name={icon} size={18} color={colors.textTertiary} />
-
+      <Ionicons name={icon} size={18} color={focused ? colors.primary : colors.textTertiary} />
       <TextInput
         {...props}
         placeholderTextColor={colors.textTertiary}
-        onFocus={e => {
-          setFocused(true);
-
-          props.onFocus?.(e);
-        }}
-        onBlur={e => {
-          setFocused(false);
-
-          props.onBlur?.(e);
-        }}
-        style={[
-          styles.inputText,
-          {
-            color: colors.textPrimary,
-          },
-        ]}
+        onFocus={e => { setFocused(true); props.onFocus?.(e); }}
+        onBlur={e => { setFocused(false); props.onBlur?.(e); }}
+        style={[styles.inputText, { color: colors.textPrimary }]}
       />
-
       {rightIcon && (
         <TouchableOpacity onPress={onRightPress} hitSlop={10}>
           <Ionicons name={rightIcon} size={18} color={colors.textTertiary} />
@@ -487,115 +369,132 @@ function Input({ icon, rightIcon, onRightPress, colors, ...props }: InputProps) 
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-  },
+  safe: { flex: 1 },
+  scroll: { paddingBottom: 32 },
 
-  scroll: {
-    padding: 20,
-    paddingBottom: 40,
+  heroGradient: {
+    paddingTop: 44,
+    paddingBottom: 52,
+    paddingHorizontal: 24,
+    overflow: 'hidden',
+    position: 'relative',
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
   },
-
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    marginBottom: 20,
-    marginTop: 8,
+  heroVeil: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,30,0,0.14)',
   },
-
-  logoBg: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    padding: 6,
+  patternOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
   },
-
-  logoImg: {
-    width: '100%',
-    height: '100%',
-  },
-
-  brand: {
-    fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-  },
-
-  brandSub: {
-    fontSize: 12,
-    marginTop: 2,
-    fontWeight: '500',
-  },
-
-  heroCard: {
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 20,
-  },
-
-  heroHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-
-  heroBadge: {
-    flexDirection: 'row',
+  heroContent: {
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
   },
-
+  logoWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 14,
+    elevation: 8,
+    padding: 10,
+  },
+  logoImg: { width: '100%', height: '100%' },
   heroTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    marginBottom: 6,
+    fontSize: 30,
+    fontWeight: '900',
+    color: '#fff',
+    letterSpacing: -0.5,
   },
-
   heroSub: {
     fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 16,
+    color: 'rgba(255,255,255,0.90)',
+    fontWeight: '600',
+  },
+  heroBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 999,
+    marginTop: 6,
+  },
+  heroBadgeText: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.95)',
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+
+  card: {
+    marginHorizontal: 16,
+    marginTop: -24,
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 22,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 10,
   },
 
   tabs: {
     flexDirection: 'row',
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 4,
     borderWidth: 1,
-    marginBottom: 4,
+    marginBottom: 16,
   },
-
   tab: {
     flex: 1,
     paddingVertical: 9,
-    borderRadius: 9,
+    borderRadius: 10,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+  },
+
+  cardTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+    marginBottom: 4,
+  },
+  cardSub: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 4,
   },
 
   label: {
     fontSize: 11,
-    fontWeight: '600',
-    marginBottom: 6,
+    fontWeight: '700',
+    marginBottom: 7,
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-
   input: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     paddingHorizontal: 14,
-    height: 50,
-    borderRadius: 12,
+    height: 52,
+    borderRadius: 14,
     borderWidth: 1.5,
   },
-
   inputText: {
     flex: 1,
     fontSize: 15,
@@ -606,10 +505,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 14,
-    marginBottom: 4,
+    marginTop: 16,
+    marginBottom: 6,
   },
-
   rememberRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -621,14 +519,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    height: 52,
-    borderRadius: 12,
-    marginTop: 14,
+    height: 54,
+    borderRadius: 14,
+    marginTop: 16,
+  },
+  buttonText: {
+    fontWeight: '800',
+    fontSize: 16,
+    textAlignVertical: 'center',
   },
 
-  buttonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
+  footerInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 16,
+    paddingTop: 14,
+    borderTopWidth: 1,
   },
 });
