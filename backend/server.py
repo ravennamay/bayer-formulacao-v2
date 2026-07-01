@@ -37,6 +37,8 @@ from openpyxl.styles import (
     Border,
     Side,
 )
+from openpyxl.drawing.image import Image as XLImage
+from openpyxl.utils import get_column_letter
 
 # =========================================================
 # ENV
@@ -1310,8 +1312,36 @@ async def whatsapp_report(
 
 
 # =========================================================
-# EXCEL EXPORT
+# EXCEL EXPORT  (styled, with Bayer branding)
 # =========================================================
+
+LOGO_PATH = Path(__file__).parent / "bayer_logo.png"
+
+# colour palette
+C_GREEN_DARK  = "0A4A20"
+C_GREEN_MED   = "00A04E"
+C_GREEN_LIGHT = "E8F5E9"
+C_GREEN_ALT   = "F0FAF4"
+C_WHITE       = "FFFFFF"
+C_GREY_TEXT   = "444444"
+C_BORDER      = "BDBDBD"
+C_HEADER_TXT  = "FFFFFF"
+
+def _thin_border(color=C_BORDER):
+    s = Side(border_style="thin", color=color)
+    return Border(left=s, right=s, top=s, bottom=s)
+
+def _apply_header_style(cell, font_size=10):
+    cell.fill   = PatternFill("solid", fgColor=C_GREEN_MED)
+    cell.font   = Font(bold=True, color=C_HEADER_TXT, size=font_size, name="Calibri")
+    cell.border = _thin_border()
+    cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+def _apply_data_style(cell, alt_row=False, align="left"):
+    cell.fill      = PatternFill("solid", fgColor=C_GREEN_ALT if alt_row else C_WHITE)
+    cell.font      = Font(size=10, color=C_GREY_TEXT, name="Calibri")
+    cell.border    = _thin_border("E0E0E0")
+    cell.alignment = Alignment(horizontal=align, vertical="center", wrap_text=True)
 
 
 @api_router.get("/export/excel")
@@ -1319,81 +1349,91 @@ async def export_excel(
     date: str,
     user: dict = Depends(get_current_user),
 ):
-
     items = await db.production_items.find(
-        {"date": date},
-        {"_id": 0},
+        {"date": date}, {"_id": 0}
     ).to_list(2000)
 
     wb = openpyxl.Workbook()
-
     ws = wb.active
-    ws.title = f"Bayer {date}"
+    ws.title = f"Produção {date}"
 
-    headers = [
-        "Unidade",
-        "SC",
-        "Produto",
-        "Abrev",
-        "Lote",
-        "Quantidade",
-        "Status MP",
-        "Situação",
-        "Observação",
+    # ── row heights
+    ws.row_dimensions[1].height = 70   # logo row
+    ws.row_dimensions[2].height = 22   # title
+    ws.row_dimensions[3].height = 16   # subtitle
+    ws.row_dimensions[4].height = 10   # spacer
+    ws.row_dimensions[5].height = 28   # column headers
+    ws.sheet_view.showGridLines = False
+
+    HEADERS = [
+        "Unidade", "SC", "Produto", "Abrev.",
+        "Lote", "Quantidade", "Status MP", "Situação", "Observação",
     ]
+    NUM_COLS = len(HEADERS)
 
-    ws.append(headers)
+    # ── merge top rows for branding banner
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=NUM_COLS)
+    ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=NUM_COLS)
+    ws.merge_cells(start_row=3, start_column=1, end_row=3, end_column=NUM_COLS)
+    ws.merge_cells(start_row=4, start_column=1, end_row=4, end_column=NUM_COLS)
 
-    header_fill = PatternFill(
-        start_color="00A04E",
-        end_color="00A04E",
-        fill_type="solid",
-    )
+    # banner background
+    banner_fill = PatternFill("solid", fgColor=C_GREEN_DARK)
+    for row in range(1, 5):
+        cell = ws.cell(row=row, column=1)
+        cell.fill = banner_fill
 
-    bold_white = Font(
-        bold=True,
-        color="FFFFFF",
-    )
+    # title text
+    title_cell = ws.cell(row=2, column=1)
+    title_cell.value = "BAYER OPERACIONAL  ·  Controle de Produção"
+    title_cell.font  = Font(bold=True, size=16, color=C_WHITE, name="Calibri")
+    title_cell.alignment = Alignment(horizontal="center", vertical="center")
 
-    thin = Side(
-        border_style="thin",
-        color="DDDDDD",
-    )
+    # subtitle
+    sub_cell = ws.cell(row=3, column=1)
+    sub_cell.value = f"Data: {date}   |   Exportado por: {user.get('name', 'Operador')}   |   Bayer S.A. — Produção Industrial"
+    sub_cell.font  = Font(size=9, color="AAFFAA", italic=True, name="Calibri")
+    sub_cell.alignment = Alignment(horizontal="center", vertical="center")
 
-    border = Border(
-        left=thin,
-        right=thin,
-        top=thin,
-        bottom=thin,
-    )
+    # logo
+    if LOGO_PATH.exists():
+        try:
+            img = XLImage(str(LOGO_PATH))
+            img.width  = 58
+            img.height = 58
+            img.anchor = "A1"
+            ws.add_image(img)
+        except Exception:
+            pass
 
-    for col in range(1, len(headers) + 1):
+    # ── column headers (row 5)
+    for col_idx, h in enumerate(HEADERS, 1):
+        cell = ws.cell(row=5, column=col_idx, value=h)
+        _apply_header_style(cell)
 
-        cell = ws.cell(
-            row=1,
-            column=col,
-        )
+    # ── data rows
+    WIDTHS = [13, 6, 22, 9, 16, 13, 17, 18, 36]
+    for i, w in enumerate(WIDTHS, 1):
+        ws.column_dimensions[get_column_letter(i)].width = w
 
-        cell.fill = header_fill
-        cell.font = bold_white
-        cell.border = border
+    # status colours for "Situação" column (col 8)
+    STATUS_FILLS = {
+        "Preparado":  "C8E6C9",
+        "Pendente":   "FFF9C4",
+        "Cancelado":  "FFCDD2",
+        "Em andamento": "BBDEFB",
+    }
 
-        cell.alignment = Alignment(
-            horizontal="center",
-            vertical="center",
-        )
-
-    for item in items:
+    for idx, item in enumerate(items):
+        row_num = 6 + idx
+        alt = (idx % 2 == 1)
+        ws.row_dimensions[row_num].height = 18
 
         qty = ""
-
         if item.get("quantity") is not None:
-            qty = (
-                f"{item['quantity']:g} "
-                f"{item.get('quantity_unit', '')}"
-            )
+            qty = f"{item['quantity']:g} {item.get('quantity_unit', '')}".strip()
 
-        row = [
+        values = [
             item.get("unit", ""),
             item.get("sc", ""),
             item.get("product", ""),
@@ -1404,36 +1444,175 @@ async def export_excel(
             item.get("situation", ""),
             item.get("observation", ""),
         ]
+        aligns = ["center","center","left","center","center","center","center","center","left"]
 
-        ws.append(row)
+        for col_idx, (val, aln) in enumerate(zip(values, aligns), 1):
+            cell = ws.cell(row=row_num, column=col_idx, value=val)
+            _apply_data_style(cell, alt_row=alt, align=aln)
 
-    widths = [12, 8, 20, 10, 16, 14, 16, 16, 30]
+        # colour-code situação
+        sit = item.get("situation", "")
+        for key, fill_color in STATUS_FILLS.items():
+            if key.lower() in str(sit).lower():
+                ws.cell(row=row_num, column=8).fill = PatternFill("solid", fgColor=fill_color)
+                ws.cell(row=row_num, column=8).font = Font(size=10, color="333333", bold=True, name="Calibri")
+                break
 
-    for i, width in enumerate(widths, 1):
-        ws.column_dimensions[
-            openpyxl.utils.get_column_letter(i)
-        ].width = width
+    # ── auto-filter on header row
+    ws.auto_filter.ref = f"A5:{get_column_letter(NUM_COLS)}5"
+
+    # ── freeze panes below header
+    ws.freeze_panes = "A6"
+
+    # ── footer note in last row + 2
+    last_row = 6 + len(items)
+    ws.merge_cells(start_row=last_row, start_column=1, end_row=last_row, end_column=NUM_COLS)
+    footer = ws.cell(row=last_row, column=1)
+    footer.value = f"Bayer S.A. · Documento gerado automaticamente pelo sistema Bayer Operacional em {datetime.now(timezone.utc).strftime('%d/%m/%Y %H:%M')} UTC"
+    footer.font  = Font(size=8, color="AAAAAA", italic=True, name="Calibri")
+    footer.alignment = Alignment(horizontal="right")
 
     buffer = io.BytesIO()
-
     wb.save(buffer)
-
     buffer.seek(0)
 
     filename = f"bayer_planilha_{date}.xlsx"
-
     return StreamingResponse(
         buffer,
-        media_type=(
-            "application/"
-            "vnd.openxmlformats-officedocument."
-            "spreadsheetml.sheet"
-        ),
-        headers={
-            "Content-Disposition":
-            f'attachment; filename="{filename}"'
-        },
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+# =========================================================
+# PASSAGEM DE SERVIÇO
+# =========================================================
+
+class LotEntry(BaseModel):
+    unit: str = ""
+    sc: str = ""
+    product: str = ""
+    lot: str = ""
+    status: str = ""
+    notes: str = ""
+
+class ReceiptEntry(BaseModel):
+    product: str = ""
+    qty: str = ""
+
+class HandoverCreate(BaseModel):
+    shift: str
+    lots: list[LotEntry] = []
+    receipts: list[ReceiptEntry] = []
+    observations: str = ""
+    participants: list[str] = []
+
+@api_router.post("/handover")
+async def create_handover(
+    body: HandoverCreate,
+    user: dict = Depends(get_current_user),
+):
+    doc = {
+        "shift": body.shift,
+        "lots": [lot.model_dump() for lot in body.lots],
+        "receipts": [r.model_dump() for r in body.receipts],
+        "observations": body.observations,
+        "participants": body.participants,
+        "created_by": user.get("email", ""),
+        "created_by_name": user.get("name", ""),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    result = await db.handovers.insert_one(doc)
+    doc["_id"] = str(result.inserted_id)
+    return doc
+
+@api_router.get("/handover")
+async def list_handovers(
+    shift: Optional[str] = None,
+    limit: int = 40,
+    user: dict = Depends(get_current_user),
+):
+    query: dict = {}
+    if shift:
+        query["shift"] = shift
+    projection = {
+        "_id": 1, "shift": 1, "lots": 1, "receipts": 1,
+        "observations": 1, "participants": 1,
+        "created_by": 1, "created_by_name": 1, "created_at": 1,
+    }
+    cursor = db.handovers.find(query, projection)
+    cursor = cursor.sort("created_at", -1).limit(limit)
+    docs = await cursor.to_list(limit)
+    for d in docs:
+        d["_id"] = str(d["_id"])
+        if "receipts" not in d:
+            d["receipts"] = []
+    return docs
+
+
+# =========================================================
+# HANDOVER EDIT / DELETE
+# =========================================================
+
+HANDOVER_EDIT_WINDOW_MINUTES = 15
+
+def _can_modify_handover(h_created_at: str, user: dict) -> bool:
+    if user.get("role") == "admin":
+        return True
+    try:
+        created = datetime.fromisoformat(h_created_at.replace("Z", "+00:00"))
+        return datetime.now(timezone.utc) - created <= timedelta(minutes=HANDOVER_EDIT_WINDOW_MINUTES)
+    except Exception:
+        return False
+
+@api_router.put("/handover/{handover_id}")
+async def update_handover(
+    handover_id: str,
+    body: HandoverCreate,
+    user: dict = Depends(get_current_user),
+):
+    from bson import ObjectId
+    try:
+        oid = ObjectId(handover_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="ID inválido")
+    existing = await db.handovers.find_one({"_id": oid})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Passagem não encontrada")
+    if not _can_modify_handover(existing.get("created_at", ""), user):
+        raise HTTPException(status_code=403, detail="Prazo de edição encerrado (15 minutos)")
+    update_data = {
+        "shift": body.shift,
+        "lots": [lot.model_dump() for lot in body.lots],
+        "receipts": [r.model_dump() for r in body.receipts],
+        "observations": body.observations,
+        "participants": body.participants,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.handovers.update_one({"_id": oid}, {"$set": update_data})
+    updated = await db.handovers.find_one({"_id": oid})
+    updated["_id"] = str(updated["_id"])
+    return updated
+
+@api_router.delete("/handover/{handover_id}")
+async def delete_handover(
+    handover_id: str,
+    user: dict = Depends(get_current_user),
+):
+    from bson import ObjectId
+    try:
+        oid = ObjectId(handover_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="ID inválido")
+    existing = await db.handovers.find_one({"_id": oid})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Passagem não encontrada")
+    if not _can_modify_handover(existing.get("created_at", ""), user):
+        raise HTTPException(status_code=403, detail="Prazo de exclusão encerrado (15 minutos)")
+    await db.handovers.delete_one({"_id": oid})
+    return {"ok": True}
+
+
 
 
 # =========================================================
