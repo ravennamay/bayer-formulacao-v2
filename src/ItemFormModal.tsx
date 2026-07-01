@@ -97,6 +97,8 @@ export default function ItemFormModal({ visible, initial, date, onClose, onSaved
       setQuantity(initial.quantity != null ? String(initial.quantity) : '');
       setSituation(initial.situation);
       setObservation(initial.observation || '');
+      setBatchMode('single');
+      setBatchRange('');
     } else {
       setUnit(UNITS[0]);
       setSc(SCS[0]);
@@ -109,6 +111,7 @@ export default function ItemFormModal({ visible, initial, date, onClose, onSaved
       setObservation('');
     }
     setSaveProgress(0);
+    setShowSuggestions(false);
   }, [visible, initial]);
 
   const parsedBatches = batchMode === 'multi' ? parseBatchEntries(batchRange) : [];
