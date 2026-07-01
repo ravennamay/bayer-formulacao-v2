@@ -13,16 +13,16 @@ type TabConfig = {
 };
 
 const TABS: TabConfig[] = [
-  { name: 'index',        title: 'Início',    icon: 'home-outline',       iconFocused: 'home' },
-  { name: 'planilha',     title: 'Planilha',  icon: 'grid-outline',       iconFocused: 'grid' },
-  { name: 'tabela-turno', title: 'Escala',    icon: 'calendar-outline',   iconFocused: 'calendar' },
-  { name: 'guide',        title: 'Guia',      icon: 'book-outline',       iconFocused: 'book' },
-  { name: 'report',       title: 'Relatório', icon: 'bar-chart-outline',  iconFocused: 'bar-chart' },
-  { name: 'settings',     title: 'Config.',   icon: 'settings-outline',   iconFocused: 'settings' },
+  { name: 'index',        title: 'Início',    icon: 'home-outline',            iconFocused: 'home' },
+  { name: 'planilha',     title: 'Planilha',  icon: 'grid-outline',            iconFocused: 'grid' },
+  { name: 'handover',     title: 'Passagem',  icon: 'swap-horizontal-outline', iconFocused: 'swap-horizontal' },
+  { name: 'guide',        title: 'Guia',      icon: 'book-outline',            iconFocused: 'book' },
+  { name: 'report',       title: 'Relatório', icon: 'bar-chart-outline',       iconFocused: 'bar-chart' },
+  { name: 'settings',     title: 'Config.',   icon: 'settings-outline',        iconFocused: 'settings' },
 ];
 
 const HIDDEN_TABS = [
-  'turno', 'gallery', 'explore', 'products',
+  'turno', 'gallery', 'explore', 'products', 'tabela-turno',
 ];
 
 export default function TabLayout() {
@@ -40,9 +40,9 @@ export default function TabLayout() {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
           borderTopWidth: 1,
-          paddingBottom: bottomPad,
-          paddingTop: 6,
-          height: 52 + bottomPad,
+          paddingTop: 10,
+          paddingBottom: bottomPad + 10,
+          height: 62 + bottomPad,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.07,
@@ -53,10 +53,10 @@ export default function TabLayout() {
           fontSize: 10,
           fontWeight: '700',
           letterSpacing: 0.2,
-          marginTop: 1,
+          marginTop: 2,
         },
         tabBarIconStyle: {
-          marginBottom: -2,
+          marginBottom: 0,
         },
       }}
     >
