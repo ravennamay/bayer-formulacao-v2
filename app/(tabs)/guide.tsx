@@ -127,15 +127,19 @@ export default function GuideScreen() {
   }, [recipes, q]);
 
   const filteredCatalog = useMemo(() => {
-    if (!q) return defaultCatalog;
-    return defaultCatalog.filter(p =>
-      `${p.name} ${p.category} ${p.subcategory} ${p.activeIngredients.map(ai => ai.name).join(' ')}`.toLowerCase().includes(q)
-    );
+    const base = !q
+      ? defaultCatalog
+      : defaultCatalog.filter(p =>
+          `${p.name} ${p.category} ${p.subcategory} ${p.activeIngredients.map(ai => ai.name).join(' ')}`.toLowerCase().includes(q)
+        );
+    return [...base].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
   }, [q]);
 
   const filteredChem = useMemo(() => {
-    if (!q) return chemistry;
-    return chemistry.filter(c => `${c.name} ${c.alias} ${c.className}`.toLowerCase().includes(q));
+    const base = !q
+      ? chemistry
+      : chemistry.filter(c => `${c.name} ${c.alias} ${c.className}`.toLowerCase().includes(q));
+    return [...base].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
   }, [chemistry, q]);
 
   const filteredProc = useMemo(() => {
